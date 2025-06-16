@@ -1,1 +1,1 @@
-# DroneAI
+# DroneAIWESChallenge
