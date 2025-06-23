@@ -11,7 +11,7 @@ lora = serial.Serial(port='/dev/ttyS0', baudrate=9600, parity=serial.PARITY_NONE
 # See test script to use Pillow to open and reduce image size
 
 # Read and encode image
-with open('images/compressed_img_18.jpg', 'rb') as img_file:
+with open('images/img_18.jpg', 'rb') as img_file:
     img_data = img_file.read()
 b64_data = base64.b64encode(img_data).decode('utf-8')
 
