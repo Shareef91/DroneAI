@@ -2,13 +2,16 @@ import serial
 import time
 import base64
 import os
+#from PIL import Image
 
 # LoRa serial setup (adjust port as needed)
 lora = serial.Serial(port='/dev/ttyS0', baudrate=9600, parity=serial.PARITY_NONE,
                      stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
 
+# See test script to use Pillow to open and reduce image size
+
 # Read and encode image
-with open('images/img_18.jpg', 'rb') as img_file:
+with open('images/compressed_img_18.jpg', 'rb') as img_file:
     img_data = img_file.read()
 b64_data = base64.b64encode(img_data).decode('utf-8')
 
