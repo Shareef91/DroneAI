@@ -7,7 +7,7 @@ net = cv2.dnn.readNetFromCaffe(
     '/home/pi/models/mobilenet_ssd/MobileNetSSD_deploy.caffemodel'
 )
 
-CLASSES = ["grass", "aeroplane", "cone", "bird", "boat",
+CLASSES = ["grass", "aeroplane", "cone", "bird", "carpet",
            "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
            "dog", "horse", "motorbike", "person", "pottedplant",
            "sheep", "sofa", "train", "tvmonitor"]
