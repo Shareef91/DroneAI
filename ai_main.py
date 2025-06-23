@@ -12,7 +12,8 @@ import Adafruit_DHT
 
 from picamera2 import MappedArray, Picamera2
 from picamera2.devices import IMX500
-from picamera2.devices.imx500 import (NetworkIntrinsics, postprocess_nanodet_detection)
+from picamera2.devices.imx500 import (NetworkIntrinsics,
+                                      postprocess_nanodet_detection)
 
 last_detections = []
 last_sent_time = 0
@@ -32,7 +33,8 @@ def read_weather():
     humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
     if humidity is not None and temperature is not None:
         return round(temperature, 1), round(humidity, 1)
-    return None, None
+    else:
+        return None, None
 
 def save_detection_image(picam2, folder):
     frame = picam2.capture_array()
@@ -43,7 +45,7 @@ def save_detection_image(picam2, folder):
     return filename
 
 class LoRaTransmitter:
-    def __init__(self, port="/dev/ttyUSB0", baudrate=57600):
+    def __init__(self, port="/dev/ttyS0", baudrate=57600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
 
@@ -85,35 +87,6 @@ class LoRaTransmitter:
     def close(self):
         self.ser.close()
 
-@lru_cache
-def get_labels():
-    labels = intrinsics.labels
-    if intrinsics.ignore_dash_labels:
-        labels = [label for label in labels if label and label != "-"]
-    return labels
-
-def draw_detections(request, stream="main"):
-    detections = last_results
-    if detections is None:
-        return
-    labels = get_labels()
-    temperature, humidity = read_weather()
-    weather_label = f"Temp: {temperature}C  Hum: {humidity}%" if temperature and humidity else "Weather: N/A"
-    with MappedArray(request, stream) as m:
-        for detection in detections:
-            x, y, w, h = detection.box
-            label = f"{labels[int(detection.category)]} ({detection.conf:.2f})"
-            (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            text_x = x + 5
-            text_y = y + 15
-            overlay = m.array.copy()
-            cv2.rectangle(overlay, (text_x, text_y - text_height), (text_x + text_width, text_y + baseline), (255, 255, 255), cv2.FILLED)
-            cv2.addWeighted(overlay, 0.3, m.array, 0.7, 0, m.array)
-            cv2.putText(m.array, label, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-            cv2.rectangle(m.array, (x, y), (x + w, y + h), (0, 255, 0, 0), thickness=2)
-
-        cv2.putText(m.array, weather_label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-
 def parse_detections(metadata: dict):
     global last_detections, last_sent_time
     bbox_normalization = intrinsics.bbox_normalization
@@ -127,7 +100,9 @@ def parse_detections(metadata: dict):
     if np_outputs is None:
         return last_detections
     if intrinsics.postprocess == "nanodet":
-        boxes, scores, classes = postprocess_nanodet_detection(outputs=np_outputs[0], conf=threshold, iou_thres=iou, max_out_dets=max_detections)[0]
+        boxes, scores, classes = \
+            postprocess_nanodet_detection(outputs=np_outputs[0], conf=threshold, iou_thres=iou,
+                                          max_out_dets=max_detections)[0]
         from picamera2.devices.imx500.postprocess import scale_boxes
         boxes = scale_boxes(boxes, 1, 1, input_h, input_w, False, False)
     else:
@@ -155,50 +130,3 @@ def parse_detections(metadata: dict):
         last_sent_time = time.time()
 
     return last_detections
-
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk")
-    parser.add_argument("--threshold", type=float, default=0.55)
-    parser.add_argument("--iou", type=float, default=0.65)
-    parser.add_argument("--max-detections", type=int, default=10)
-    parser.add_argument("--bbox-normalization", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--bbox-order", choices=["yx", "xy"], default="yx")
-    parser.add_argument("--postprocess", choices=["", "nanodet"], default=None)
-    parser.add_argument("--labels", type=str)
-    parser.add_argument("--print-intrinsics", action="store_true")
-    parser.add_argument("-r", "--preserve-aspect-ratio", action=argparse.BooleanOptionalAction)
-    return parser.parse_args()
-
-if __name__ == "__main__":
-    args = get_args()
-    imx500 = IMX500(args.model)
-    intrinsics = imx500.network_intrinsics or NetworkIntrinsics()
-    if intrinsics.task != "object detection":
-        intrinsics.task = "object detection"
-    for key, value in vars(args).items():
-        if key == 'labels' and value:
-            with open(value, 'r') as f:
-                intrinsics.labels = f.read().splitlines()
-        elif hasattr(intrinsics, key) and value is not None:
-            setattr(intrinsics, key, value)
-    if intrinsics.labels is None:
-        with open("assets/coco_labels.txt", "r") as f:
-            intrinsics.labels = f.read().splitlines()
-    intrinsics.update_with_defaults()
-
-    if args.print_intrinsics:
-        print(intrinsics)
-        exit()
-
-    picam2 = Picamera2(imx500.camera_num)
-    config = picam2.create_preview_configuration(controls={"FrameRate": intrinsics.inference_rate}, buffer_count=12)
-    picam2.start(config, show_preview=True)
-    if intrinsics.preserve_aspect_ratio:
-        imx500.set_auto_aspect_ratio()
-
-    lora = LoRaTransmitter()
-    last_results = None
-    picam2.pre_callback = draw_detections
-    while True:
-        last_results = parse_detections(picam2.capture_metadata())
