@@ -30,6 +30,6 @@ for idx, packet in enumerate(packets):
         lora.write(to_send.encode('utf-8'))
         ack = lora.readline().decode('utf-8').strip()
     print(f"Packet {idx+1}/{total_packets} sent and acknowledged.")
-    time.sleep(0.5)  # Small delay to avoid overwhelming receiver
+    time.sleep(0.1)  # Small delay to avoid overwhelming receiver
 
 print("Image transmission complete.")
