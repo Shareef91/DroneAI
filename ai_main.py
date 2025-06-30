@@ -45,7 +45,7 @@ def save_detection_image(picam2, folder):
     return filename
 
 class LoRaTransmitter:
-    def __init__(self, port="/dev/ttyS0", baudrate=57600):
+    def __init__(self, port="/dev/ttys0", baudrate=57600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
 
@@ -130,3 +130,104 @@ def parse_detections(metadata: dict):
         last_sent_time = time.time()
 
     return last_detections
+
+def draw_detections(request):
+    """Draw detection boxes on the camera preview"""
+    with MappedArray(request, "main") as m:
+        for detection in last_detections:
+            x1, y1, x2, y2 = detection.box
+            cv2.rectangle(m.array, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0, 0), 2)
+            label = f"{detection.category}: {detection.conf:.2f}"
+            cv2.putText(m.array, label, (int(x1), int(y1) - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0, 0), 1)
+
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="AI Detection with LoRa transmission")
+    parser.add_argument("--model", type=str, help="Path to the AI model",
+                       default="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk")
+    parser.add_argument("--threshold", type=float, default=0.55, help="Detection confidence threshold")
+    parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold for NMS")
+    parser.add_argument("--max-detections", type=int, default=10, help="Maximum number of detections")
+    parser.add_argument("--lora-port", type=str, default="/dev/ttyUSB0", help="LoRa serial port")
+    parser.add_argument("--lora-baudrate", type=int, default=57600, help="LoRa baudrate")
+    parser.add_argument("--preview", action="store_true", help="Show camera preview with detections")
+
+    args = parser.parse_args()
+
+    try:
+        # Initialize camera and AI model
+        print("Initializing camera and AI model...")
+        if not IMX500.is_available():
+            print("ERROR: IMX500 not available. Make sure you're running on a compatible device.")
+            sys.exit(1)
+
+        picam2 = Picamera2(IMX500.load_network(args.model))
+
+        # Get model intrinsics
+        intrinsics = picam2.camera_manager.active_cameras[0].camera.controls.active_camera.model.net.intrinsics
+        imx500 = picam2.camera_manager.active_cameras[0].camera.controls.active_camera.model
+
+        # Configure camera
+        config = picam2.create_preview_configuration(controls={"FrameRate": 30})
+        picam2.configure(config)
+
+        # Initialize LoRa transmitter
+        print(f"Initializing LoRa transmitter on {args.lora_port}...")
+        lora = LoRaTransmitter(port=args.lora_port, baudrate=args.lora_baudrate)
+
+        # Setup preview if requested
+        if args.preview:
+            picam2.post_callback = draw_detections
+
+        # Start camera
+        print("Starting camera...")
+        picam2.start(show_preview=args.preview)
+
+        print("AI Detection system started. Press Ctrl+C to stop.")
+        print(f"Detection threshold: {args.threshold}")
+        print(f"Cooldown period: {COOLDOWN_SEC} seconds")
+
+        # Main detection loop
+        while True:
+            # Get camera metadata for AI inference
+            metadata = picam2.capture_metadata()
+
+            if metadata:
+                # Process detections
+                detections = parse_detections(metadata)
+
+                if detections:
+                    print(f"Detected {len(detections)} objects")
+                    for i, det in enumerate(detections):
+                        print(f"  {i+1}: {det.category} (confidence: {det.conf:.2f})")
+
+            # Small delay to prevent excessive CPU usage
+            time.sleep(0.1)
+
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    except serial.SerialException as e:
+        print(f"LoRa communication error: {e}")
+        print("Check LoRa device connection and port settings.")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        # Cleanup
+        try:
+            if 'lora' in locals():
+                try:
+                    lora.close()
+                except:
+                    pass
+            if 'picam2' in locals():
+                try:
+                    picam2.stop()
+                except:
+                    pass
+            print("Cleanup completed.")
+        except Exception as cleanup_error:
+            print(f"Error during cleanup: {cleanup_error}")
+
