@@ -22,7 +22,9 @@ fig.patch.set_facecolor('lightblue')
 canvas = FigureCanvasTkAgg(fig, master=window)
 canvas.draw()
 #canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.Y, expand=1)
-
+# if button makes sense
+stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red')
+stop_rec_btn.pack(side=tk.LEFT, anchor='s', pady=20)
 
 # Move the plot canvas into the left side of the frame
 canvas.get_tk_widget().pack_forget()  # Remove from previous packing
