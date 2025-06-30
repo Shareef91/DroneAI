@@ -41,6 +41,9 @@ class WeatherData:
 WeatherStruct = WeatherData()
 
 wQueue = Queue()
+imgQueue = Queue()
+weatherCounter = 0
+
 
 class Detection:
     def __init__(self, coords, category, conf, metadata):
@@ -60,7 +63,7 @@ def read_weather():
         humidity = bme280.relative_humidity
         pressure = bme280.pressure
         altitude = bme280.altitude
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now().strftime("%H:%M:%S")
 
         # add to struct
         WeatherStruct.time = timestamp
@@ -92,13 +95,61 @@ def save_detection_image(picam2, folder):
     cv2.imwrite(filename, frame)
     return filename
 
+
 class LoRaTransmitter:
     def __init__(self, port="/dev/ttyS0", baudrate=9600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
 
     def send(self, message):
-        self.ser.write((message + "\n").encode())
+        retry_count = 0
+        while retry_count <= MAX_RETRIES:
+            self.ser.write((message + "\n").encode('utf-8'))
+            start_time = time.time()
+            ack_received = False
+            while time.time() - start_time < 2:
+                if self.ser.in_waiting:
+                    ack = self.ser.readline().decode('utf-8').strip()
+                    if ack == f"ACK {message}":
+                        ack_received = True
+                        break
+            if ack_received:
+                print(f"acknowledged.")
+                break
+            else:
+                retry_count += 1
+                print(f"not acknowledged. Retry {retry_count}/{MAX_RETRIES}...")
+                time.sleep(0.2)
+
+
+    def send_weather(self, weatherToSend):
+        message = f"W:{weatherCounter},{weatherToSend.time},{weatherToSend.temp:.2f},{weatherToSend.humidity:.2f},{weatherToSend.pressure:.2f},{weatherToSend.altitude:.2f}"
+        retry_count = 0
+        while retry_count <= MAX_RETRIES:
+            self.ser.write((message + "\n").encode('utf-8'))
+            start_time = time.time()
+            ack_received = False
+            while time.time() - start_time < 2:
+                if self.ser.in_waiting:
+                    ack = self.ser.readline().decode('utf-8').strip()
+                    if ack == f"ACK {weatherCounter}":
+                        ack_received = True
+                        break
+            if ack_received:
+                print(f"Weather Packet {weatherCounter} acknowledged.")
+                break
+            else:
+                retry_count += 1
+                print(f"Weather Packet {weatherCounter} not acknowledged. Retry {retry_count}/{MAX_RETRIES}...")
+                time.sleep(0.2)
+        weatherCounter += 1
+
+    def loop(self):
+        while running:
+            if not wQueue.empty():
+                self.send_weather(wQueue.get())
+            if not imgQueue.empty():
+                self.send_image(imgQueue.get())
 
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
@@ -108,6 +159,8 @@ class LoRaTransmitter:
         print(f"Sending image in {total} packets...")
 
         for i in range(total):
+            if not wQueue.empty():
+                self.send_weather(wQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
@@ -130,7 +183,8 @@ class LoRaTransmitter:
                     time.sleep(0.2)
             time.sleep(0.1)
 
-        print("Image transmission completed.")
+        print("Image transmission completed. Sending object ID")
+        self.send(image_path.split('/')[-1])  # Send the image filename as object ID
 
     def close(self):
         self.ser.close()
@@ -197,8 +251,8 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=float, default=0.55, help="Detection confidence threshold")
     parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold for NMS")
     parser.add_argument("--max-detections", type=int, default=10, help="Maximum number of detections")
-    parser.add_argument("--lora-port", type=str, default="/dev/ttyUSB0", help="LoRa serial port")
-    parser.add_argument("--lora-baudrate", type=int, default=57600, help="LoRa baudrate")
+    parser.add_argument("--lora-port", type=str, default="/dev/ttyS0", help="LoRa serial port")
+    parser.add_argument("--lora-baudrate", type=int, default=9600, help="LoRa baudrate")
     parser.add_argument("--preview", action="store_true", help="Show camera preview with detections")
 
     args = parser.parse_args()
@@ -236,6 +290,13 @@ if __name__ == "__main__":
         print(f"Detection threshold: {args.threshold}")
         print(f"Cooldown period: {COOLDOWN_SEC} seconds")
 
+        # Start weather data reading in a separate thread
+        weather_thread = threading.Thread(target=read_weather, daemon=True)
+        #start lora in new thread
+        lora_thread = threading.Thread(target=lora.loop, daemon=True)
+
+        weather_thread.start()
+        lora_thread.start()
         # Main detection loop
         while True:
             # Get camera metadata for AI inference
@@ -255,6 +316,7 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print("\nShutting down...")
+                
     except serial.SerialException as e:
         print(f"LoRa communication error: {e}")
         print("Check LoRa device connection and port settings.")
@@ -265,6 +327,7 @@ if __name__ == "__main__":
     finally:
         # Cleanup
         try:
+            running = False
             if 'lora' in locals():
                 try:
                     lora.close()
@@ -275,6 +338,11 @@ if __name__ == "__main__":
                     picam2.stop()
                 except:
                     pass
+            if 'weather_thread' in locals() and weather_thread.is_alive():
+                weather_thread.join(timeout=1)
+            if 'lora_thread' in locals() and lora_thread.is_alive():
+                lora_thread.join(timeout=1)
+            
             print("Cleanup completed.")
         except Exception as cleanup_error:
             print(f"Error during cleanup: {cleanup_error}")
