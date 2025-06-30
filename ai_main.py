@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+import board
 from functools import lru_cache
 from datetime import datetime
 import os
@@ -9,6 +10,10 @@ import numpy as np
 import serial
 import base64
 import Adafruit_DHT
+import threading
+from queue import Queue
+from adafruit_bme280 import basic as adafruit_bme280
+
 
 from picamera2 import MappedArray, Picamera2
 from picamera2.devices import IMX500
@@ -23,18 +28,61 @@ DHT_PIN = 4
 CHUNK_SIZE = 200
 MAX_RETRIES = 3
 
+running = True
+
+class WeatherData:
+    def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
+        self.time = time
+        self.temp = temp
+        self.humidity = humidity
+        self.pressure = pressure
+        self.altitude = altitude
+
+WeatherStruct = WeatherData()
+
+wQueue = Queue()
+
 class Detection:
     def __init__(self, coords, category, conf, metadata):
         self.category = category
         self.conf = conf
         self.box = imx500.convert_inference_coords(coords, metadata, picam2)
 
+
+# should be run as a seperate thread
 def read_weather():
-    humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
-    if humidity is not None and temperature is not None:
-        return round(temperature, 1), round(humidity, 1)
-    else:
-        return None, None
+    i2c = board.I2C()
+    bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, 0x76)
+    bme280.sea_level_pressure = 1018.5
+
+    while running:
+        temperature = bme280.temperature
+        humidity = bme280.relative_humidity
+        pressure = bme280.pressure
+        altitude = bme280.altitude
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # add to struct
+        WeatherStruct.time = timestamp
+        WeatherStruct.temp = temperature
+        WeatherStruct.humidity = humidity
+        WeatherStruct.pressure = pressure
+        WeatherStruct.altitude = altitude
+
+        # print(f"Temperature: {temperature:.1f} C")
+        # print(f"Humidity: {humidity:.1f} %")
+        # print(f"Pressure: {pressure:.1f} hPa")
+        # print(f"Altitude: {altitude:.2f} meters")
+
+        # add data to a csv file with a column for each data point as well as time.
+        with open("weather_data.csv", "a") as f:
+            f.write(f"{timestamp},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
+
+        # push the data to a queue for transmission (first in first out)
+        wQueue.put(WeatherStruct)
+
+        time.sleep(5)
+
 
 def save_detection_image(picam2, folder):
     frame = picam2.capture_array()
@@ -45,7 +93,7 @@ def save_detection_image(picam2, folder):
     return filename
 
 class LoRaTransmitter:
-    def __init__(self, port="/dev/ttys0", baudrate=57600):
+    def __init__(self, port="/dev/ttyS0", baudrate=9600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
 
