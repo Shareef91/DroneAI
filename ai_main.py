@@ -42,8 +42,6 @@ WeatherStruct = WeatherData()
 
 wQueue = Queue()
 imgQueue = Queue()
-weatherCounter = 0
-
 
 class Detection:
     def __init__(self, coords, category, conf, metadata):
@@ -100,6 +98,7 @@ class LoRaTransmitter:
     def __init__(self, port="/dev/ttyS0", baudrate=9600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
+        self.weatherCounter = 0
 
     def send(self, message):
         retry_count = 0
@@ -123,7 +122,7 @@ class LoRaTransmitter:
 
 
     def send_weather(self, weatherToSend):
-        message = f"W:{weatherCounter},{weatherToSend.time},{weatherToSend.temp:.2f},{weatherToSend.humidity:.2f},{weatherToSend.pressure:.2f},{weatherToSend.altitude:.2f}"
+        message = f"W:{self.weatherCounter},{weatherToSend.time},{weatherToSend.temp:.2f},{weatherToSend.humidity:.2f},{weatherToSend.pressure:.2f},{weatherToSend.altitude:.2f}"
         retry_count = 0
         while retry_count <= MAX_RETRIES:
             self.ser.write((message + "\n").encode('utf-8'))
@@ -132,17 +131,17 @@ class LoRaTransmitter:
             while time.time() - start_time < 2:
                 if self.ser.in_waiting:
                     ack = self.ser.readline().decode('utf-8').strip()
-                    if ack == f"ACK {weatherCounter}":
+                    if ack == f"ACK {self.weatherCounter}":
                         ack_received = True
                         break
             if ack_received:
-                print(f"Weather Packet {weatherCounter} acknowledged.")
+                print(f"Weather Packet {self.weatherCounter} acknowledged.")
                 break
             else:
                 retry_count += 1
-                print(f"Weather Packet {weatherCounter} not acknowledged. Retry {retry_count}/{MAX_RETRIES}...")
+                print(f"Weather Packet {self.weatherCounter} not acknowledged. Retry {retry_count}/{MAX_RETRIES}...")
                 time.sleep(0.2)
-        weatherCounter += 1
+        self.weatherCounter += 1
 
     def loop(self):
         while running:
@@ -184,7 +183,7 @@ class LoRaTransmitter:
             time.sleep(0.1)
 
         print("Image transmission completed. Sending object ID")
-        self.send(image_path.split('/')[-1])  # Send the image filename as object ID
+        self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
 
     def close(self):
         self.ser.close()

@@ -3,6 +3,19 @@ import time
 import argparse
 import serial
 import re
+import base64
+from queue import Queue
+
+wQueue = Queue()
+imgQueue = Queue()
+
+class WeatherData:
+    def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
+        self.time = time
+        self.temp = temp
+        self.humidity = humidity
+        self.pressure = pressure
+        self.altitude = altitude
 
 class LoRaReceiver:
 
@@ -10,11 +23,13 @@ class LoRaReceiver:
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                              stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
         
-    def receiver(self):
-        received_packets = {}
-        expected_total = None
+        self.received_packets = {}
+        self.expected_total = None
+        self.img_name = None
 
-        while running:
+    def receiver(self):
+
+        while True:
             data_read = self.ser.readline()
             if not data_read:
                 continue
@@ -33,3 +48,54 @@ class LoRaReceiver:
             except Exception as e:
                 print(f"Error: {e}")
                 continue
+
+    def weather_receive(self, data):
+        wData = data[2:]
+        # parse data into weather struct
+        try:
+            time, temp, humidity, pressure, altitude = wData.split(',')
+            weather_data = WeatherData(time, float(temp), float(humidity), float(pressure), float(altitude))
+            wQueue.put(weather_data)
+            print(f"Weather Data Received: {weather_data.__dict__}")
+        except ValueError as e:
+            print(f"Error parsing weather data: {e}")
+
+    def image_receive(self, data):
+
+        header, packet = data.split(':', 1)
+        idx, total = header.split('/')
+        idx = int(idx)
+        total = int(total)
+
+        if self.expected_total != total:
+            self.expected_total = total
+            self.received_packets.clear()
+        self.received_packets[idx] = packet
+        ack_msg = f"ACK {idx}\n"
+        self.ser.write(ack_msg.encode('utf-8'))
+        print(f"Received packet {idx}/{total}")
+        if len(self.received_packets) == self.expected_total:
+            print("All packets received. Reconstructing image...")
+            b64_data = ''.join([self.received_packets[i] for i in range(1, self.expected_total + 1)])
+            img_data = base64.b64decode(b64_data)
+            self.expected_total = None
+            self.received_packets.clear()
+            # save image as img name
+            if self.img_name:
+                with open(self.img_name, 'wb') as img_file:
+                    img_file.write(img_data)
+                print(f"Image saved as {self.img_name}")
+            else:
+                with open('unknown_image.jpg', 'wb') as img_file:
+                    img_file.write(img_data)
+                    self.img_name = 'unknown_image.jpg'
+                print("Image name not set. saved as unknown image.jpg")
+            imgQueue.put(self.img_name)
+            self.img_name = None  # Reset image name for next transmission
+        
+    def ID_receive(self, data):
+        if data.startswith("ID:"):
+            self.img_name = data[3:].strip()
+            print(f"Image name set to: {self.img_name}")
+        else:
+            print(f"Unknown data received: {data}")
