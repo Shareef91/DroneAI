@@ -1,11 +1,12 @@
 """
 imx500_ai_camera_test.py
 ------------------------
-Test script for Sony IMX500 AI Camera on Raspberry Pi 4.
-- Loads default object detection model
-- Shows live pop-up window with detection boxes and labels (OpenCV)
-- Prints all detected objects/labels/confidences to terminal
-- Saves last frame as 'ai_test_output.jpg' when you quit
+Test script for Sony IMX500 AI Camera on Raspberry Pi 4 using Picamera2.
+
+- Loads the default object detection model.
+- Shows a live pop-up window with detection boxes and labels (OpenCV).
+- Prints all detected objects/labels/confidences to terminal.
+- Saves the last frame as 'ai_test_output.jpg' when you quit.
 
 USAGE:
     python3 imx500_ai_camera_test.py
@@ -22,24 +23,28 @@ import cv2
 
 # Path to the default AI detection model (change if your .rpk is elsewhere)
 model_path = "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk"
-
-# Optional: Change this for a different save filename
 output_image = "ai_test_output.jpg"
 
-# === Main Code ===
-
 def main():
-    # Check for IMX500 camera hardware
-    if not IMX500.is_available():
-        print("ERROR: IMX500 camera NOT available! Check cable, hardware, or drivers.")
+    # List available cameras
+    print("Checking for available cameras...")
+    cameras = Picamera2.global_camera_info()
+    print("Detected camera modules:", cameras)
+    if not cameras:
+        print("ERROR: No camera modules detected! Check cable, hardware, or drivers.")
         return
-    print("IMX500 camera detected!")
 
-    # Initialize camera with AI model
-    print(f"Loading AI model: {model_path}")
-    picam2 = Picamera2(IMX500.load_network(model_path))
-    picam2.start()
-    print("Camera started. Pop-up will appear. Press 'q' in the window to exit.")
+    # Try to start IMX500 with the object detection model
+    try:
+        print(f"Loading AI model: {model_path}")
+        picam2 = Picamera2(IMX500.load_network(model_path))
+        picam2.start()
+        print("IMX500 camera and AI model started. Pop-up window will appear. Press 'q' in the window to exit.")
+    except Exception as e:
+        print("ERROR: Failed to initialize IMX500 or load AI model.")
+        print(e)
+        return
+
     time.sleep(1)  # Allow camera to warm up
 
     last_frame = None  # For saving when quitting
