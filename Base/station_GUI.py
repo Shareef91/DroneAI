@@ -3,11 +3,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from PIL import ImageTk, Image
 
-
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
-from weather_data import WeatherData
+from Lora_Rec import WeatherData
 
 import threading
 
@@ -48,6 +44,11 @@ def main():
     frame.config(background='lightblue')
     frame.pack(fill=tk.BOTH, expand=1)
 
+    # this frame holds all the images   
+    right_frame = tk.Frame(frame, width=600, background='lightblue')
+    right_frame.pack(side=tk.RIGHT, fill=tk.Y)
+    right_frame.pack_propagate(False)
+
     #display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
@@ -58,11 +59,9 @@ def main():
     fig.patch.set_facecolor('lightblue')
     canvas = FigureCanvasTkAgg(fig, master=window)
     canvas.draw()
-    #canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.Y, expand=1)
    
-    # Move the plot canvas into the left side of the frame
-    canvas.get_tk_widget().pack_forget()  # Remove from previous packing
-    canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1)
+    # Move the plot canvas into the left side of the frame; padding is to decrease height
+    canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60)
 
     # if button makes sense
     stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red')
@@ -71,11 +70,11 @@ def main():
     display_img = Image.open(img_list[0])
     expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
     img = ImageTk.PhotoImage(expandedImg)
-    image_label = tk.Label(frame, image=img, background='lightblue')
+    image_label = tk.Label(right_frame, image=img, background='lightblue')
     image_label.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
     #previous images
     for i in range(1, len(img_list)):
-        new_img_label = display_prev_image(tk.Label(frame, background='lightblue'), img_list[-i])
+        new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])
         new_img_label.pack(side=tk.RIGHT, pady=15, fill=tk.BOTH, expand=1)
     window.mainloop()
 
