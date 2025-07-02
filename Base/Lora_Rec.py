@@ -3,19 +3,15 @@ import time
 import argparse
 import serial
 import re
+import sys
+import os
 import base64
 from queue import Queue
+sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
+from weather_data import WeatherData
 
 wQueue = Queue()
 imgQueue = Queue()
-
-class WeatherData:
-    def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
-        self.time = time
-        self.temp = temp
-        self.humidity = humidity
-        self.pressure = pressure
-        self.altitude = altitude
 
 class LoRaReceiver:
 
