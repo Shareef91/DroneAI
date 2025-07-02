@@ -53,6 +53,7 @@ class LoRaReceiver:
             weather_data = WeatherData(time, float(temp), float(humidity), float(pressure), float(altitude))
             wQueue.put(weather_data)
             ack_msg = f"ACK {weatherCounter}\n"
+            self.ser.write(ack_msg.encode('utf-8'))
             print(f"Weather Data Received: {weather_data.__dict__}")
         except ValueError as e:
             print(f"Error parsing weather data: {e}")
