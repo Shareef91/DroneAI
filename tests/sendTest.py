@@ -134,6 +134,8 @@ class LoRaTransmitter:
 
         total = (len(b64_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
         print(f"Sending image in {total} packets...")
+        print("Image transmission ready. Sending object ID")
+        self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
 
         for i in range(total):
             if not wQueue.empty():
@@ -160,9 +162,6 @@ class LoRaTransmitter:
                     time.sleep(0.2)
             time.sleep(0.1)
 
-        print("Image transmission completed. Sending object ID")
-        self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
-
     def close(self):
         self.ser.close()
 
@@ -172,6 +171,7 @@ if __name__ == "__main__":
     threading.Thread(target=read_weather, daemon=True).start()
     threading.Thread(target=LoRaSend.loop, daemon=True).start()
 
+    imgQueue.put("img_14.png")  # Example image to send
     try:
         while True:
             time.sleep(1)
