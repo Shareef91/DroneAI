@@ -3,7 +3,10 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from PIL import ImageTk, Image
 
-from Lora_Rec import WeatherData
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
+from weather_data import WeatherData
 
 import threading
 

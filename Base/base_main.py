@@ -2,7 +2,7 @@ import threading
 import queue
 
 from station_GUI import main, update_plot, test_update, update_img
-from Lora_Rec import LoRaReceiver, WeatherData
+from Lora_Rec import LoRaReceiver
 
 def plot_data(data_queue, done):
     while not done:
