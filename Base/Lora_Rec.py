@@ -49,9 +49,10 @@ class LoRaReceiver:
         wData = data[2:]
         # parse data into weather struct
         try:
-            time, temp, humidity, pressure, altitude = wData.split(',')
+            weatherCounter, time, temp, humidity, pressure, altitude = wData.split(',')
             weather_data = WeatherData(time, float(temp), float(humidity), float(pressure), float(altitude))
             wQueue.put(weather_data)
+            ack_msg = f"ACK {weatherCounter}\n"
             print(f"Weather Data Received: {weather_data.__dict__}")
         except ValueError as e:
             print(f"Error parsing weather data: {e}")
@@ -93,5 +94,6 @@ class LoRaReceiver:
         if data.startswith("ID:"):
             self.img_name = data[3:].strip()
             print(f"Image name set to: {self.img_name}")
+            self.ser.write(f"ACK {data}\n".encode('utf-8'))
         else:
             print(f"Unknown data received: {data}")
