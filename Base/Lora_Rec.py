@@ -15,7 +15,7 @@ imgQueue = Queue()
 
 class LoRaReceiver:
 
-    def __init__(self, port="/dev/ttyS0", baudrate=9600):
+    def __init__(self, port="/dev/ttyUSB0", baudrate=9600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                              stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
         
