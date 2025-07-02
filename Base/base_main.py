@@ -15,10 +15,11 @@ def display_img(img_queue):
             update_img(img_data)
 
 if __name__ == "__main__":
+    # test threads
+    # threading.Thread(target=test_update).start() # use plot_data() rather than test_update()
+    # threading.Thread(target=update_plot, args=(WeatherData(6, 3, 5, 22),)).start()
+    
     base_receiver = LoRaReceiver()
-    threading.Thread(target=test_update).start() # use plot_data() rather than test_update()
-    threading.Thread(target=update_plot, args=(WeatherData(6, 3, 5, 22),)).start()
-
     threading.Thread(target=base_receiver.receiver).start()
     threading.Thread(target=plot_data, args=(base_receiver.wQueue,)).start()
     threading.Thread(target=display_img, args=(base_receiver.imgQueue,)).start()
