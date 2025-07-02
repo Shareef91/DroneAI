@@ -1,5 +1,5 @@
 import threading
-import queue
+from queue import Queue
 
 from station_GUI import main, update_plot, test_update, update_img
 from Lora_Rec import LoRaReceiver

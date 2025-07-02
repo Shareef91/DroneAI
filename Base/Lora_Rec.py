@@ -10,8 +10,8 @@ from queue import Queue
 sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
 from weather_data import WeatherData
 
-wQueue = Queue()
-imgQueue = Queue()
+# wQueue = Queue()
+# imgQueue = Queue()
 
 class LoRaReceiver:
 
@@ -22,6 +22,8 @@ class LoRaReceiver:
         self.received_packets = {}
         self.expected_total = None
         self.img_name = None
+        self.wQueue = Queue()
+        self.imgQueue = Queue()
 
     def receiver(self):
 

@@ -13,7 +13,7 @@ import threading
 dict1 = {}
 dict2 = {}
 dict3 = {}
-img_list = ["lora_repo/images/placeholder.png"]
+img_list = ["../lora_repo/images/placeholder.png"]
 
 def update_plot(data_val):
     if data_val is not None:
