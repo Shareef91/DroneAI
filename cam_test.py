@@ -1,37 +1,31 @@
 """
 imx500_ai_camera_test.py
 ------------------------
-Test script for Sony IMX500 AI Camera on Raspberry Pi 4.
-- Loads MobileNet SSD object detection model
-- Shows live pop-up window with detection boxes and labels (OpenCV)
-- Prints all detected objects/labels/confidences to terminal
-- Saves last frame as 'ai_test_output.jpg' when you quit
+Test script for Sony IMX500 AI Camera on Raspberry Pi 4 with virtualenv.
+- Loads default MobileNet SSD AI model
+- Shows live pop-up window with detection boxes and labels
+- Prints detected objects/labels/confidences to terminal
 
 USAGE:
-    python3 imx500_ai_camera_test.py
-
-Press 'q' in the pop-up window to exit.
+    python imx500_ai_camera_test.py
 """
 
 from picamera2 import Picamera2
 import time
 import cv2
 
-# === Configuration ===
-
-# Use the built-in MobileNet SSD object detection model (.rpk)
+# MobileNet SSD model path (provided by apt package imx500-models)
 model_path = "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk"
 output_image = "ai_test_output.jpg"
 
 def main():
-    # List and check for available cameras
+    # List available cameras
     cameras = Picamera2.global_camera_info()
     print("Detected camera modules:", cameras)
     if not cameras:
         print("ERROR: No camera modules detected! Check cable, hardware, or drivers.")
         return
 
-    # Initialize camera with MobileNet SSD model
     print(f"Loading MobileNet SSD model: {model_path}")
     try:
         picam2 = Picamera2()
@@ -47,8 +41,8 @@ def main():
         print(e)
         return
 
-    print("Camera started. Pop-up will appear. Press 'q' in the window to exit.")
-    time.sleep(1)  # Allow camera to warm up
+    print("Camera started. Press 'q' in the window to exit.")
+    time.sleep(1)
 
     last_frame = None
 
@@ -56,10 +50,8 @@ def main():
         while True:
             frame = picam2.capture_array()
             last_frame = frame.copy()
-
             metadata = picam2.capture_metadata()
 
-            # Detection key can be "AI" or "ai" depending on Picamera2 version
             det_key = None
             if metadata:
                 if "AI" in metadata:
