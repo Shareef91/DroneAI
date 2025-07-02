@@ -1,34 +1,54 @@
+"""
+imx500_ai_camera_test.py
+------------------------
+Test script for Sony IMX500 AI Camera on Raspberry Pi 4.
+- Loads MobileNet SSD object detection model
+- Shows live pop-up window with detection boxes and labels (OpenCV)
+- Prints all detected objects/labels/confidences to terminal
+- Saves last frame as 'ai_test_output.jpg' when you quit
+
+USAGE:
+    python3 imx500_ai_camera_test.py
+
+Press 'q' in the pop-up window to exit.
+"""
+
 from picamera2 import Picamera2
 import time
 import cv2
 
+# === Configuration ===
+
+# Use the built-in MobileNet SSD object detection model (.rpk)
 model_path = "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk"
 output_image = "ai_test_output.jpg"
 
 def main():
-    # List available cameras
+    # List and check for available cameras
     cameras = Picamera2.global_camera_info()
     print("Detected camera modules:", cameras)
     if not cameras:
         print("ERROR: No camera modules detected! Check cable, hardware, or drivers.")
         return
 
+    # Initialize camera with MobileNet SSD model
+    print(f"Loading MobileNet SSD model: {model_path}")
     try:
         picam2 = Picamera2()
         config = picam2.create_preview_configuration(
-            main={"size": (1280, 720)},  # or (640, 480) if you want
+            main={"size": (1280, 720)},
             controls={"FrameRate": 15},
             ai_model=model_path
         )
         picam2.configure(config)
         picam2.start()
-        print("Camera and AI model started. Pop-up window will appear. Press 'q' in the window to exit.")
     except Exception as e:
         print("ERROR: Failed to initialize camera or load AI model.")
         print(e)
         return
 
-    time.sleep(1)
+    print("Camera started. Pop-up will appear. Press 'q' in the window to exit.")
+    time.sleep(1)  # Allow camera to warm up
 
     last_frame = None
 
@@ -36,10 +56,19 @@ def main():
         while True:
             frame = picam2.capture_array()
             last_frame = frame.copy()
+
             metadata = picam2.capture_metadata()
 
-            if metadata and "AI" in metadata and "detections" in metadata["AI"]:
-                detections = metadata["AI"]["detections"]
+            # Detection key can be "AI" or "ai" depending on Picamera2 version
+            det_key = None
+            if metadata:
+                if "AI" in metadata:
+                    det_key = "AI"
+                elif "ai" in metadata:
+                    det_key = "ai"
+
+            if det_key and "detections" in metadata[det_key]:
+                detections = metadata[det_key]["detections"]
                 print(f"\nDetected {len(detections)} object(s):")
                 for det in detections:
                     x1, y1, x2, y2 = det["bbox"]
