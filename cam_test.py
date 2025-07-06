@@ -1,88 +1,57 @@
-"""
-cam_test_yolov8n_save.py
-------------------------
-YOLOv8n camera test for Raspberry Pi 4.
-- Saves a detection frame in 'detections/' every time at least one object is detected.
-- Also saves the last frame on quit.
-- Shows live window with boxes/labels.
-"""
-
-from picamera2 import Picamera2
-from ultralytics import YOLO
 import cv2
-import time
 import os
 from datetime import datetime
+from ultralytics import YOLO
+
+# ---- CONFIG ----
+MODEL_PATH = "yolov8n.pt"    # Put your YOLOv8n weights in same folder or give full path
+SAVE_DIR = "detections"      # Folder where images will be saved
+CAM_INDEX = 0                # 0 = Pi cam, USB cam; try 1 or 2 if you have multiple
+# -----------------
 
 def main():
-    # Detect camera modules
-    cameras = Picamera2.global_camera_info()
-    print("Detected camera modules:", cameras)
-    if not cameras:
-        print("ERROR: No camera modules detected! Check your camera hardware.")
+    os.makedirs(SAVE_DIR, exist_ok=True)
+    print(f"[INFO] Loading YOLOv8n model from: {MODEL_PATH}")
+    model = YOLO(MODEL_PATH)
+    print("[INFO] Starting camera stream. Press 'q' to quit, 's' to save manually.")
+
+    cap = cv2.VideoCapture(CAM_INDEX)
+    if not cap.isOpened():
+        print("[ERROR] Camera not found. Try changing CAM_INDEX.")
         return
 
-    print("Loading YOLOv8n model (auto-download if missing)...")
-    model = YOLO("yolov8n.pt")
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("[ERROR] Failed to capture frame from camera.")
+            break
 
-    picam2 = Picamera2()
-    config = picam2.create_preview_configuration(main={"size": (640, 480)}, controls={"FrameRate": 15})
-    picam2.configure(config)
-    picam2.start()
-    time.sleep(1)
-    print("Camera started. Press 'q' in the window to exit.")
+        # Run YOLOv8n detection
+        results = model(frame)[0]
+        annotated = results.plot()
 
-    last_frame = None
-    os.makedirs("detections", exist_ok=True)
-    last_detection_time = 0
-    cooldown_sec = 2  # avoid spamming for every frame (adjust if you want)
+        # If objects detected, auto-save
+        if len(results.boxes) > 0:
+            now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            img_path = os.path.join(SAVE_DIR, f"auto_{now}.jpg")
+            cv2.imwrite(img_path, annotated)
+            print(f"[AUTO-SAVE] Detected objects! Image saved: {img_path}")
 
-    try:
-        while True:
-            frame = picam2.capture_array()
-            last_frame = frame.copy()
-            results = model(frame)
+        # Show window (needs VNC or monitor attached)
+        cv2.imshow("YOLOv8n Live (Pi)", annotated)
+        key = cv2.waitKey(1) & 0xFF
 
-            detected = False
-            for r in results:
-                for box in r.boxes:
-                    detected = True
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    conf = float(box.conf[0])
-                    cls = int(box.cls[0])
-                    label = model.names[cls]
-                    print(f"Detected: {label} | Confidence: {conf:.2f} | Box: ({x1},{y1})-({x2},{y2})")
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(frame, f"{label} ({conf:.2f})", (x1, y1 - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        if key == ord('q'):
+            print("[INFO] Quitting live stream.")
+            break
+        elif key == ord('s'):
+            now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            img_path = os.path.join(SAVE_DIR, f"manual_{now}.jpg")
+            cv2.imwrite(img_path, annotated)
+            print(f"[MANUAL SAVE] Image saved: {img_path}")
 
-            # Save frame when there's a detection (with cooldown)
-            now = time.time()
-            if detected and (now - last_detection_time > cooldown_sec):
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                save_path = f"detections/detection_{timestamp}.jpg"
-                cv2.imwrite(save_path, frame)
-                print(f"Saved detection frame as '{save_path}'")
-                last_detection_time = now
-
-            cv2.imshow("YOLOv8n Camera Test", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                print("\nQuitting live preview.")
-                break
-
-    except KeyboardInterrupt:
-        print("\nScript interrupted by user. Exiting...")
-
-    finally:
-        picam2.stop()
-        cv2.destroyAllWindows()
-        if last_frame is not None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            save_path = f"detections/yolo_cam_test_output_{timestamp}.jpg"
-            cv2.imwrite(save_path, last_frame)
-            print(f"Last frame saved as '{save_path}'.")
-        print("Camera released and all windows closed.")
+    cap.release()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
-
