@@ -57,6 +57,7 @@ def main():
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
     data = update_plot(None)  # Initial call to set up the plot
+    print("Plotting data: ", data)
     ax.plot(data[0].keys(), data[0].values(), label="Fake Temperature")
     ax.plot(data[1].keys(), data[1].values(), label="Fake Humidity")
     ax.plot(data[2].keys(), data[2].values(), label="Fake Pressure")
