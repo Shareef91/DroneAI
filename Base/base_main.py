@@ -27,11 +27,10 @@ if __name__ == "__main__":
     done = False
     base_receiver = LoRaReceiver()
     threading.Thread(target=base_receiver.receiver).start()
-    threading.Thread(target=plot_data, args=(base_receiver.wQueue, done)).start()
+    #threading.Thread(target=plot_data, args=(base_receiver.wQueue, done)).start()
     threading.Thread(target=display_img, args=(base_receiver.imgQueue, done)).start()
 
-    main()
-
+    main(base_receiver.wQueue)
     # weather packet -  W:(int here)
     # fraction of total image packet
     # image name packet - just the name; like object type  = should come first once Jack does that

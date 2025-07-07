@@ -38,7 +38,7 @@ def display_prev_image(label, img):
     return label
 
 
-def main():
+def main(wQueue=None):
     window = tk.Tk()
     window.title("Sensor Data and Image Display")
     window.geometry("700x500")
@@ -69,7 +69,8 @@ def main():
 
     # Timer event to update the plot
     def refresh_plot():
-        data = update_plot(None)
+        data = update_plot(wQueue.get() if wQueue and not wQueue.empty() else None)
+        print("Refreshing plot with data: ", data)
         temp_plot.set_data(list(data[0].keys()), list(data[0].values()))
         hum_plot.set_data(list(data[1].keys()), list(data[1].values()))
         pres_plot.set_data(list(data[2].keys()), list(data[2].values()))
