@@ -141,9 +141,9 @@ class LoRaTransmitter:
         self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
 
         for i in range(total):
-            if not wQueue.empty():
+            while not wQueue.empty():
                 self.send_weather(wQueue.get())
-            if not objQueue.empty():
+            while not objQueue.empty():
                 self.send("OBJ:" + objQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
