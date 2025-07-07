@@ -63,7 +63,7 @@ class LoRaReceiver:
             print(f"Weather Data Received: {weather_data.__dict__}")
             # add to csv
             with open("weather_data.csv", "a") as f:
-                f.write(f"{time},{temp:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
+                f.write(f"{time.strftime("%H:%M:%S")},{temp:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
         except ValueError as e:
             print(f"Error parsing weather data: {e}")
 

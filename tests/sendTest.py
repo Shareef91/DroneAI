@@ -49,7 +49,7 @@ def read_weather():
         humidity = bme280.relative_humidity
         pressure = bme280.pressure
         altitude = bme280.altitude
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now()
 
         # add to struct
         WeatherStruct.time = timestamp
@@ -65,7 +65,7 @@ def read_weather():
 
         # add data to a csv file with a column for each data point as well as time.
         with open("weather_data.csv", "a") as f:
-            f.write(f"{timestamp},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
+            f.write(f"{timestamp.strftime("%H:%M:%S")},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
 
         # push the data to a queue for transmission (first in first out)
         wQueue.put(WeatherStruct)
