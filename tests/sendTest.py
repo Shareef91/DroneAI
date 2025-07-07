@@ -27,6 +27,7 @@ running = True
 
 wQueue = Queue()
 imgQueue = Queue()
+objQueue = Queue()
 
 class WeatherData:
     def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
@@ -125,6 +126,8 @@ class LoRaTransmitter:
         while running:
             if not wQueue.empty():
                 self.send_weather(wQueue.get())
+            if not objQueue.empty():
+                self.send("OBJ:" + objQueue.get())  # Send object ID
             if not imgQueue.empty():
                 self.send_image(imgQueue.get())
 
@@ -140,6 +143,8 @@ class LoRaTransmitter:
         for i in range(total):
             if not wQueue.empty():
                 self.send_weather(wQueue.get())
+            if not objQueue.empty():
+                self.send("OBJ:" + objQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
@@ -170,7 +175,7 @@ if __name__ == "__main__":
     LoRaSend = LoRaTransmitter()
     threading.Thread(target=read_weather, daemon=True).start()
     threading.Thread(target=LoRaSend.loop, daemon=True).start()
-
+    objQueue.put("OBJ:I SEE YOU")  # Example object ID to send
     imgQueue.put("img_14.png")  # Example image to send
     try:
         while True:

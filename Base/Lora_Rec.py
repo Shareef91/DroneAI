@@ -24,6 +24,7 @@ class LoRaReceiver:
         self.img_name = None
         self.wQueue = Queue()
         self.imgQueue = Queue()
+        self.objQueue = Queue()
 
     def receiver(self):
 
@@ -41,8 +42,11 @@ class LoRaReceiver:
                 if re.match(r"^\d+/\d+:", data):
                     self.image_receive(data)
                     continue
-                else:
+                if data.startswith("ID:"):
                     self.ID_receive(data)
+                    continue
+                if data.startswith("OBJ:"):
+                    self.OBJ_rec(data)
             except Exception as e:
                 print(f"Error: {e}")
                 continue
@@ -94,9 +98,12 @@ class LoRaReceiver:
             self.img_name = None  # Reset image name for next transmission
         
     def ID_receive(self, data):
-        if data.startswith("ID:"):
-            self.img_name = data[3:].strip()
-            print(f"Image name set to: {self.img_name}")
-            self.ser.write(f"ACK {data}\n".encode('utf-8'))
-        else:
-            print(f"Unknown data received: {data}")
+        self.img_name = data[3:].strip()
+        print(f"Image name set to: {self.img_name}")
+        self.ser.write(f"ACK {data}\n".encode('utf-8'))
+    
+    def OBJ_rec(self, data):
+        obj_data = data[4:].strip()
+        print(f"Object Data Received: {obj_data}")
+        objQueue.put(obj_data)
+        self.ser.write(f"ACK {data}\n".encode('utf-8'))
