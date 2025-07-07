@@ -57,7 +57,7 @@ class LoRaReceiver:
         try:
             weatherCounter, time, temp, humidity, pressure, altitude = wData.split(',')
             weather_data = WeatherData(time, float(temp), float(humidity), float(pressure), float(altitude))
-            wQueue.put(weather_data)
+            self.wQueue.put(weather_data)
             ack_msg = f"ACK {weatherCounter}\n"
             self.ser.write(ack_msg.encode('utf-8'))
             print(f"Weather Data Received: {weather_data.__dict__}")
@@ -94,7 +94,7 @@ class LoRaReceiver:
                     img_file.write(img_data)
                     self.img_name = 'unknown_image.jpg'
                 print("Image name not set. saved as unknown image.jpg")
-            imgQueue.put(self.img_name)
+            self.imgQueue.put(self.img_name)
             self.img_name = None  # Reset image name for next transmission
         
     def ID_receive(self, data):
@@ -105,5 +105,5 @@ class LoRaReceiver:
     def OBJ_rec(self, data):
         obj_data = data[4:].strip()
         print(f"Object Data Received: {obj_data}")
-        objQueue.put(obj_data)
+        self.objQueue.put(obj_data)
         self.ser.write(f"ACK {data}\n".encode('utf-8'))
