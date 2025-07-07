@@ -1,6 +1,8 @@
 import tkinter as tk
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import MaxNLocator
+import matplotlib.pyplot as plt
 from PIL import ImageTk, Image
 from datetime import datetime
 
@@ -18,7 +20,7 @@ img_list = ["../lora_repo/images/placeholder.png"] # ../lora_repo/images/placeho
 
 def update_plot(data_val):
     if data_val is not None:
-        print("Weather data about to be plotted.")
+        #print("Weather data about to be plotted.")
         dict1[data_val.time] = data_val.temp
         dict2[data_val.time] = data_val.humidity
         dict3[data_val.time] = data_val.pressure
@@ -57,12 +59,43 @@ def main(wQueue=None):
     # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
+    ax2 = ax.twinx()  # Second y-axis
+    ax3 = ax.twinx()  # Third y-axis
+
+    # Offset the third axis to the right
+    ax3.spines["right"].set_position(("axes", 1.15))
+    ax3.spines["right"].set_visible(True)
+
     data = update_plot(None)  # Initial call to set up the plot
-    print("Plotting data: ", data)
-    temp_plot, = ax.plot(data[0].keys(), data[0].values(), label="Fake Temperature")
-    hum_plot, = ax.plot(data[1].keys(), data[1].values(), label="Fake Humidity")
-    pres_plot, = ax.plot(data[2].keys(), data[2].values(), label="Fake Pressure")
-    ax.legend()
+
+    temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
+    hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
+    pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+
+    temp_plot, = ax.plot(temp_times, list(data[0].values()), label="Temperature", color='tab:red')
+    hum_plot, = ax2.plot(hum_times, list(data[1].values()), label="Humidity", color='tab:blue')
+    pres_plot, = ax3.plot(pres_times, list(data[2].values()), label="Pressure", color='tab:green')
+
+    ax.set_ylabel("Temperature")
+    ax2.set_ylabel("Humidity")
+    ax3.set_ylabel("Pressure")
+
+    # Set axis colors for clarity
+    ax.yaxis.label.set_color('tab:red')
+    ax2.yaxis.label.set_color('tab:blue')
+    ax3.yaxis.label.set_color('tab:green')
+    ax.tick_params(axis='y', colors='tab:red')
+    ax2.tick_params(axis='y', colors='tab:blue')
+    ax3.tick_params(axis='y', colors='tab:green')
+
+    # Set x-axis label
+    ax.set_xlabel("Time")
+
+    # Combine legends
+    lines = [temp_plot, hum_plot, pres_plot]
+    labels = [l.get_label() for l in lines]
+    ax.legend(lines, labels, loc='upper left')
+
     fig.patch.set_facecolor('lightblue')
     canvas = FigureCanvasTkAgg(fig, master=window)
     canvas.draw()
@@ -77,15 +110,19 @@ def main(wQueue=None):
             data = update_plot(data_val)
             print("Refreshing plot with data: ", data)
             if data and all(isinstance(d, dict) for d in data):
-                # Convert string keys to datetime objects
                 temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
                 hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
                 pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
                 temp_plot.set_data(temp_times, list(data[0].values()))
                 hum_plot.set_data(hum_times, list(data[1].values()))
                 pres_plot.set_data(pres_times, list(data[2].values()))
+                # Autoscale each axis independently
                 ax.relim()
                 ax.autoscale_view()
+                ax2.relim()
+                ax2.autoscale_view()
+                ax3.relim()
+                ax3.autoscale_view()
                 canvas.draw()
         except Exception as e:
             print("Error in refresh_plot:", e)
