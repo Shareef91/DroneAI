@@ -2,6 +2,7 @@ import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from PIL import ImageTk, Image
+from datetime import datetime
 
 import sys
 import os
@@ -13,7 +14,7 @@ import threading
 dict1 = {}
 dict2 = {}
 dict3 = {}
-img_list = ["lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholder.png
+img_list = ["../lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholder.png
 
 def update_plot(data_val):
     if data_val is not None:
@@ -70,18 +71,19 @@ def main(wQueue=None):
     # Timer event to update the plot
     def refresh_plot():
         try:
-            # Safely get new data from the queue if available
             data_val = None
             if wQueue and not wQueue.empty():
                 data_val = wQueue.get_nowait()
             data = update_plot(data_val)
             print("Refreshing plot with data: ", data)
-            # Ensure data is a list of dicts and not empty
             if data and all(isinstance(d, dict) for d in data):
-                temp_plot.set_data(list(data[0].keys()), list(data[0].values()))
-                hum_plot.set_data(list(data[1].keys()), list(data[1].values()))
-                pres_plot.set_data(list(data[2].keys()), list(data[2].values()))
-                # Rescale axes
+                # Convert string keys to datetime objects
+                temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
+                hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
+                pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+                temp_plot.set_data(temp_times, list(data[0].values()))
+                hum_plot.set_data(hum_times, list(data[1].values()))
+                pres_plot.set_data(pres_times, list(data[2].values()))
                 ax.relim()
                 ax.autoscale_view()
                 canvas.draw()
