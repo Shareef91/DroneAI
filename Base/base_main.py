@@ -8,7 +8,11 @@ def plot_data(data_queue, done):
     while not done:
         print("is this running?")
         while data_queue.empty() is False:
-            update_plot(data_queue.get())
+            w_data = data_queue.get()  # Clear the queue
+            print("Test data: " + str(w_data))
+            print("Data type: " + type(w_data))
+            print("Queue size: " + str(data_queue.qsize()))
+            update_plot(w_data)
 
 def display_img(img_queue, done):
     while not done:

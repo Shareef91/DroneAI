@@ -5,7 +5,7 @@ from PIL import ImageTk, Image
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
+sys.path.append(os.path.dirname(os.path.abspath("../weather_data.py")))
 from weather_data import WeatherData
 
 import threading
@@ -13,7 +13,7 @@ import threading
 dict1 = {}
 dict2 = {}
 dict3 = {}
-img_list = ["../lora_repo/images/placeholder.png"]
+img_list = ["lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholder.png
 
 def update_plot(data_val):
     if data_val is not None:
@@ -74,7 +74,10 @@ def main():
     expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
     img = ImageTk.PhotoImage(expandedImg)
     image_label = tk.Label(right_frame, image=img, background='lightblue')
-    image_label.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+    object_label = tk.Label(right_frame, text="Object Type: Unknown", background='lightblue')
+    object_label.pack(side=tk.TOP, pady=(70,0))
+    image_label.pack(side=tk.TOP, fill=tk.BOTH)#, expand=1
+    
     #previous images
     for i in range(1, len(img_list)):
         new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])
