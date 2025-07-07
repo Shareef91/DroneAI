@@ -1,93 +1,57 @@
-"""
-imx500_ai_camera_test.py
-------------------------
-Test script for Sony IMX500 AI Camera on Raspberry Pi 4 with virtualenv.
-- Loads default MobileNet SSD AI model
-- Shows live pop-up window with detection boxes and labels
-- Prints detected objects/labels/confidences to terminal
-
-USAGE:
-    python imx500_ai_camera_test.py
-"""
-
-from picamera2 import Picamera2
-import time
 import cv2
+import os
+from datetime import datetime
+from ultralytics import YOLO
 
-# MobileNet SSD model path (provided by apt package imx500-models)
-model_path = "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk"
-output_image = "ai_test_output.jpg"
+# ---- CONFIG ----
+MODEL_PATH = "yolov8n.pt"    # Put your YOLOv8n weights in same folder or give full path
+SAVE_DIR = "detections"      # Folder where images will be saved
+CAM_INDEX = 0                # 0 = Pi cam, USB cam; try 1 or 2 if you have multiple
+# -----------------
 
 def main():
-    # List available cameras
-    cameras = Picamera2.global_camera_info()
-    print("Detected camera modules:", cameras)
-    if not cameras:
-        print("ERROR: No camera modules detected! Check cable, hardware, or drivers.")
+    os.makedirs(SAVE_DIR, exist_ok=True)
+    print(f"[INFO] Loading YOLOv8n model from: {MODEL_PATH}")
+    model = YOLO(MODEL_PATH)
+    print("[INFO] Starting camera stream. Press 'q' to quit, 's' to save manually.")
+
+    cap = cv2.VideoCapture(CAM_INDEX)
+    if not cap.isOpened():
+        print("[ERROR] Camera not found. Try changing CAM_INDEX.")
         return
 
-    print(f"Loading MobileNet SSD model: {model_path}")
-    try:
-        picam2 = Picamera2()
-        config = picam2.create_preview_configuration(
-            main={"size": (1280, 720)},
-            controls={"FrameRate": 15},
-            ai_model=model_path
-        )
-        picam2.configure(config)
-        picam2.start()
-    except Exception as e:
-        print("ERROR: Failed to initialize camera or load AI model.")
-        print(e)
-        return
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("[ERROR] Failed to capture frame from camera.")
+            break
 
-    print("Camera started. Press 'q' in the window to exit.")
-    time.sleep(1)
+        # Run YOLOv8n detection
+        results = model(frame)[0]
+        annotated = results.plot()
 
-    last_frame = None
+        # If objects detected, auto-save
+        if len(results.boxes) > 0:
+            now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            img_path = os.path.join(SAVE_DIR, f"auto_{now}.jpg")
+            cv2.imwrite(img_path, annotated)
+            print(f"[AUTO-SAVE] Detected objects! Image saved: {img_path}")
 
-    try:
-        while True:
-            frame = picam2.capture_array()
-            last_frame = frame.copy()
-            metadata = picam2.capture_metadata()
+        # Show window (needs VNC or monitor attached)
+        cv2.imshow("YOLOv8n Live (Pi)", annotated)
+        key = cv2.waitKey(1) & 0xFF
 
-            det_key = None
-            if metadata:
-                if "AI" in metadata:
-                    det_key = "AI"
-                elif "ai" in metadata:
-                    det_key = "ai"
+        if key == ord('q'):
+            print("[INFO] Quitting live stream.")
+            break
+        elif key == ord('s'):
+            now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            img_path = os.path.join(SAVE_DIR, f"manual_{now}.jpg")
+            cv2.imwrite(img_path, annotated)
+            print(f"[MANUAL SAVE] Image saved: {img_path}")
 
-            if det_key and "detections" in metadata[det_key]:
-                detections = metadata[det_key]["detections"]
-                print(f"\nDetected {len(detections)} object(s):")
-                for det in detections:
-                    x1, y1, x2, y2 = det["bbox"]
-                    label = det.get("label", "object")
-                    conf = det.get("confidence", 0)
-                    print(f"  - {label} | Confidence: {conf:.2f} | Box: ({x1},{y1})-({x2},{y2})")
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0,255,0), 2)
-                    cv2.putText(frame, f"{label} ({conf:.2f})", (x1, y1-10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)
-            else:
-                print(".", end="", flush=True)
-
-            cv2.imshow('IMX500 AI Camera Live', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                print("\nQuitting live preview.")
-                break
-
-    except KeyboardInterrupt:
-        print("\nScript interrupted by user. Exiting...")
-
-    finally:
-        picam2.stop()
-        cv2.destroyAllWindows()
-        if last_frame is not None:
-            cv2.imwrite(output_image, last_frame)
-            print(f"Last frame saved as '{output_image}'.")
-        print("Camera released and all windows closed.")
+    cap.release()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
