@@ -69,15 +69,24 @@ def main(wQueue=None):
 
     # Timer event to update the plot
     def refresh_plot():
-        data = update_plot(wQueue.get() if wQueue and not wQueue.empty() else None)
-        print("Refreshing plot with data: ", data)
-        temp_plot.set_data(list(data[0].keys()), list(data[0].values()))
-        hum_plot.set_data(list(data[1].keys()), list(data[1].values()))
-        pres_plot.set_data(list(data[2].keys()), list(data[2].values()))
-        # Rescale axes
-        ax.relim()
-        ax.autoscale_view()
-        canvas.draw()
+        try:
+            # Safely get new data from the queue if available
+            data_val = None
+            if wQueue and not wQueue.empty():
+                data_val = wQueue.get_nowait()
+            data = update_plot(data_val)
+            print("Refreshing plot with data: ", data)
+            # Ensure data is a list of dicts and not empty
+            if data and all(isinstance(d, dict) for d in data):
+                temp_plot.set_data(list(data[0].keys()), list(data[0].values()))
+                hum_plot.set_data(list(data[1].keys()), list(data[1].values()))
+                pres_plot.set_data(list(data[2].keys()), list(data[2].values()))
+                # Rescale axes
+                ax.relim()
+                ax.autoscale_view()
+                canvas.draw()
+        except Exception as e:
+            print("Error in refresh_plot:", e)
         window.after(2000, refresh_plot)  # Schedule next update in 2000 ms
 
     refresh_plot()  # Start the timer
