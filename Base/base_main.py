@@ -6,12 +6,11 @@ from Lora_Rec import LoRaReceiver
 
 def plot_data(data_queue, done):
     while not done:
-        print("is this running?")
         while data_queue.empty() is False:
             w_data = data_queue.get()  # Clear the queue
-            print("Test data: " + str(w_data))
-            print("Data type: " + type(w_data))
-            print("Queue size: " + str(data_queue.qsize()))
+            print("Test data: " + str(w_data))  # probably right
+            print("Data type: ", type(w_data))  # it was correct
+            print("Queue size: " + str(data_queue.qsize()))  # it was 0 each time
             update_plot(w_data)
 
 def display_img(img_queue, done):

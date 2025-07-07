@@ -17,6 +17,7 @@ img_list = ["lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholde
 
 def update_plot(data_val):
     if data_val is not None:
+        print("Weather data about to be plotted.")
         dict1[data_val.time] = data_val.temp
         dict2[data_val.time] = data_val.humidity
         dict3[data_val.time] = data_val.pressure
