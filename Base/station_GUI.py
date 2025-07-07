@@ -53,20 +53,33 @@ def main():
     right_frame.pack(side=tk.RIGHT, fill=tk.Y)
     right_frame.pack_propagate(False)
 
-    #display the plot
+    # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
     data = update_plot(None)  # Initial call to set up the plot
     print("Plotting data: ", data)
-    ax.plot(data[0].keys(), data[0].values(), label="Fake Temperature")
-    ax.plot(data[1].keys(), data[1].values(), label="Fake Humidity")
-    ax.plot(data[2].keys(), data[2].values(), label="Fake Pressure")
+    temp_plot, = ax.plot(data[0].keys(), data[0].values(), label="Fake Temperature")
+    hum_plot, = ax.plot(data[1].keys(), data[1].values(), label="Fake Humidity")
+    pres_plot, = ax.plot(data[2].keys(), data[2].values(), label="Fake Pressure")
+    ax.legend()
     fig.patch.set_facecolor('lightblue')
     canvas = FigureCanvasTkAgg(fig, master=window)
     canvas.draw()
-   
-    # Move the plot canvas into the left side of the frame; padding is to decrease height
     canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60)
+
+    # Timer event to update the plot
+    def refresh_plot():
+        data = update_plot(None)
+        temp_plot.set_data(list(data[0].keys()), list(data[0].values()))
+        hum_plot.set_data(list(data[1].keys()), list(data[1].values()))
+        pres_plot.set_data(list(data[2].keys()), list(data[2].values()))
+        # Rescale axes
+        ax.relim()
+        ax.autoscale_view()
+        canvas.draw()
+        window.after(2000, refresh_plot)  # Schedule next update in 2000 ms
+
+    refresh_plot()  # Start the timer
 
     # if button makes sense
     stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red')
