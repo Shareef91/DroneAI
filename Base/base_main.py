@@ -30,7 +30,7 @@ if __name__ == "__main__":
     #threading.Thread(target=plot_data, args=(base_receiver.wQueue, done)).start()
     threading.Thread(target=display_img, args=(base_receiver.imgQueue, done)).start()
 
-    main(base_receiver.wQueue)
+    main(base_receiver.wQueue, base_receiver.objQueue, base_receiver.imgQueue)
     # weather packet -  W:(int here)
     # fraction of total image packet
     # image name packet - just the name; like object type  = should come first once Jack does that

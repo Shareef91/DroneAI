@@ -175,7 +175,9 @@ if __name__ == "__main__":
     threading.Thread(target=read_weather, daemon=True).start()
     threading.Thread(target=LoRaSend.loop, daemon=True).start()
     objQueue.put("OBJ:I SEE YOU")  # Example object ID to send
-    imgQueue.put("img_14.png")  # Example image to send
+    objQueue.put("OBJ:I SEE YOU AGAIN")  # Example object ID to send
+    objQueue.put("OBJ:I SEE YOU A THIRD TIME")  # Example object ID to send
+    #imgQueue.put("img_14.png")  # Example image to send
     try:
         while True:
             time.sleep(1)

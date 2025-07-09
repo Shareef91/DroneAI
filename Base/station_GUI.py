@@ -41,7 +41,7 @@ def display_prev_image(label, img):
     return label
 
 
-def main(wQueue=None):
+def main(wQueue=None, objQueue=None, imgQueue=None):
     window = tk.Tk()
     window.title("Sensor Data and Image Display")
     window.geometry("700x500")
@@ -55,6 +55,14 @@ def main(wQueue=None):
     right_frame = tk.Frame(frame, width=600, background='lightblue')
     right_frame.pack(side=tk.RIGHT, fill=tk.Y)
     right_frame.pack_propagate(False)
+
+    # --- Add a frame and Listbox for object types ---
+    object_list_frame = tk.Frame(right_frame, background='lightblue')
+    object_list_frame.pack(side=tk.TOP, fill=tk.X, pady=(10, 0))
+    tk.Label(object_list_frame, text="Detected Object Types:", background='lightblue', font=('Arial', 12, 'bold')).pack(anchor='w')
+    object_listbox = tk.Listbox(object_list_frame, height=6, width=30)
+    object_listbox.pack(anchor='w', padx=10, pady=(0, 10))
+    detected_objects = set()
 
     # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
@@ -108,6 +116,12 @@ def main(wQueue=None):
             if wQueue and not wQueue.empty():
                 data_val = wQueue.get_nowait()
             data = update_plot(data_val)
+            # --- Update object type list if new object detected ---
+            if objQueue and not objQueue.empty():
+                obj_data = objQueue.get_nowait() # string representing the object type
+                if obj_data and obj_data not in detected_objects:
+                    detected_objects.add(obj_data)
+                    object_listbox.insert(tk.END, obj_data)
             print("Refreshing plot with data: ", data)
             if data and all(isinstance(d, dict) for d in data):
                 temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
