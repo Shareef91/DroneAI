@@ -1,14 +1,17 @@
 import threading
-import queue
+from queue import Queue
 
 from station_GUI import main, update_plot, test_update, update_img
 from Lora_Rec import LoRaReceiver
 
 def plot_data(data_queue, done):
     while not done:
-        print("is this running?")
         while data_queue.empty() is False:
-            update_plot(data_queue.get())
+            w_data = data_queue.get()  # Clear the queue
+            print("Test data: " + str(w_data))  # probably right
+            print("Data type: ", type(w_data))  # it was correct
+            print("Queue size: " + str(data_queue.qsize()))  # it was 0 each time
+            update_plot(w_data)
 
 def display_img(img_queue, done):
     while not done:
@@ -24,11 +27,10 @@ if __name__ == "__main__":
     done = False
     base_receiver = LoRaReceiver()
     threading.Thread(target=base_receiver.receiver).start()
-    threading.Thread(target=plot_data, args=(base_receiver.wQueue, done)).start()
+    #threading.Thread(target=plot_data, args=(base_receiver.wQueue, done)).start()
     threading.Thread(target=display_img, args=(base_receiver.imgQueue, done)).start()
 
-    main()
-
+    main(base_receiver.wQueue, base_receiver.objQueue, base_receiver.imgQueue)
     # weather packet -  W:(int here)
     # fraction of total image packet
     # image name packet - just the name; like object type  = should come first once Jack does that

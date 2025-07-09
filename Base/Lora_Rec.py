@@ -10,8 +10,8 @@ from queue import Queue
 sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
 from weather_data import WeatherData
 
-wQueue = Queue()
-imgQueue = Queue()
+# wQueue = Queue()
+# imgQueue = Queue()
 
 class LoRaReceiver:
 
@@ -22,6 +22,9 @@ class LoRaReceiver:
         self.received_packets = {}
         self.expected_total = None
         self.img_name = None
+        self.wQueue = Queue()
+        self.imgQueue = Queue()
+        self.objQueue = Queue()
 
     def receiver(self):
 
@@ -39,8 +42,11 @@ class LoRaReceiver:
                 if re.match(r"^\d+/\d+:", data):
                     self.image_receive(data)
                     continue
-                else:
+                if data.startswith("ID:"):
                     self.ID_receive(data)
+                    continue
+                if data.startswith("OBJ:"):
+                    self.OBJ_rec(data)
             except Exception as e:
                 print(f"Error: {e}")
                 continue
@@ -51,10 +57,13 @@ class LoRaReceiver:
         try:
             weatherCounter, time, temp, humidity, pressure, altitude = wData.split(',')
             weather_data = WeatherData(time, float(temp), float(humidity), float(pressure), float(altitude))
-            wQueue.put(weather_data)
+            self.wQueue.put(weather_data)
             ack_msg = f"ACK {weatherCounter}\n"
             self.ser.write(ack_msg.encode('utf-8'))
             print(f"Weather Data Received: {weather_data.__dict__}")
+            # add to csv
+            with open("weather_data.csv", "a") as f:
+                f.write(f"{time},{float(temp):.1f},{float(humidity):.1f},{float(pressure):.1f},{float(altitude):.2f}\n")
         except ValueError as e:
             print(f"Error parsing weather data: {e}")
 
@@ -88,13 +97,16 @@ class LoRaReceiver:
                     img_file.write(img_data)
                     self.img_name = 'unknown_image.jpg'
                 print("Image name not set. saved as unknown image.jpg")
-            imgQueue.put(self.img_name)
+            self.imgQueue.put(self.img_name)
             self.img_name = None  # Reset image name for next transmission
         
     def ID_receive(self, data):
-        if data.startswith("ID:"):
-            self.img_name = data[3:].strip()
-            print(f"Image name set to: {self.img_name}")
-            self.ser.write(f"ACK {data}\n".encode('utf-8'))
-        else:
-            print(f"Unknown data received: {data}")
+        self.img_name = data[3:].strip()
+        print(f"Image name set to: {self.img_name}")
+        self.ser.write(f"ACK {data}\n".encode('utf-8'))
+    
+    def OBJ_rec(self, data):
+        obj_data = data[4:].strip()
+        print(f"Object Data Received: {obj_data}")
+        self.objQueue.put(obj_data)
+        self.ser.write(f"ACK {data}\n".encode('utf-8'))

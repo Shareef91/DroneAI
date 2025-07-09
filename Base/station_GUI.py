@@ -1,11 +1,14 @@
 import tkinter as tk
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import MaxNLocator
+import matplotlib.pyplot as plt
 from PIL import ImageTk, Image
+from datetime import datetime
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath("weather_data.py")))
+sys.path.append(os.path.dirname(os.path.abspath("../weather_data.py")))
 from weather_data import WeatherData
 
 import threading
@@ -13,10 +16,11 @@ import threading
 dict1 = {}
 dict2 = {}
 dict3 = {}
-img_list = ["lora_repo/images/placeholder.png"]
+img_list = ["../lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholder.png
 
 def update_plot(data_val):
     if data_val is not None:
+        #print("Weather data about to be plotted.")
         dict1[data_val.time] = data_val.temp
         dict2[data_val.time] = data_val.humidity
         dict3[data_val.time] = data_val.pressure
@@ -37,7 +41,7 @@ def display_prev_image(label, img):
     return label
 
 
-def main():
+def main(wQueue=None, objQueue=None, imgQueue=None):
     window = tk.Tk()
     window.title("Sensor Data and Image Display")
     window.geometry("700x500")
@@ -52,19 +56,93 @@ def main():
     right_frame.pack(side=tk.RIGHT, fill=tk.Y)
     right_frame.pack_propagate(False)
 
-    #display the plot
+    # --- Add a frame and Listbox for object types ---
+    object_list_frame = tk.Frame(right_frame, background='lightblue')
+    object_list_frame.pack(side=tk.TOP, fill=tk.X, pady=(10, 0))
+    tk.Label(object_list_frame, text="Detected Object Types:", background='lightblue', font=('Arial', 12, 'bold')).pack(anchor='w')
+    object_listbox = tk.Listbox(object_list_frame, height=6, width=30)
+    object_listbox.pack(anchor='w', padx=10, pady=(0, 10))
+    detected_objects = set()
+
+    # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
+    ax2 = ax.twinx()  # Second y-axis
+    ax3 = ax.twinx()  # Third y-axis
+
+    # Offset the third axis to the right
+    ax3.spines["right"].set_position(("axes", 1.15))
+    ax3.spines["right"].set_visible(True)
+
     data = update_plot(None)  # Initial call to set up the plot
-    ax.plot(data[0].keys(), data[0].values(), label="Fake Temperature")
-    ax.plot(data[1].keys(), data[1].values(), label="Fake Humidity")
-    ax.plot(data[2].keys(), data[2].values(), label="Fake Pressure")
+
+    temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
+    hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
+    pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+
+    temp_plot, = ax.plot(temp_times, list(data[0].values()), label="Temperature", color='tab:red')
+    hum_plot, = ax2.plot(hum_times, list(data[1].values()), label="Humidity", color='tab:blue')
+    pres_plot, = ax3.plot(pres_times, list(data[2].values()), label="Pressure", color='tab:green')
+
+    ax.set_ylabel("Temperature")
+    ax2.set_ylabel("Humidity")
+    ax3.set_ylabel("Pressure")
+
+    # Set axis colors for clarity
+    ax.yaxis.label.set_color('tab:red')
+    ax2.yaxis.label.set_color('tab:blue')
+    ax3.yaxis.label.set_color('tab:green')
+    ax.tick_params(axis='y', colors='tab:red')
+    ax2.tick_params(axis='y', colors='tab:blue')
+    ax3.tick_params(axis='y', colors='tab:green')
+
+    # Set x-axis label
+    ax.set_xlabel("Time")
+
+    # Combine legends
+    lines = [temp_plot, hum_plot, pres_plot]
+    labels = [l.get_label() for l in lines]
+    ax.legend(lines, labels, loc='upper left')
+
     fig.patch.set_facecolor('lightblue')
     canvas = FigureCanvasTkAgg(fig, master=window)
     canvas.draw()
-   
-    # Move the plot canvas into the left side of the frame; padding is to decrease height
     canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60)
+
+    # Timer event to update the plot
+    def refresh_plot():
+        try:
+            data_val = None
+            if wQueue and not wQueue.empty():
+                data_val = wQueue.get_nowait()
+            data = update_plot(data_val)
+            # --- Update object type list if new object detected ---
+            if objQueue and not objQueue.empty():
+                obj_data = objQueue.get_nowait() # string representing the object type
+                if obj_data and obj_data not in detected_objects:
+                    detected_objects.add(obj_data)
+                    object_listbox.insert(tk.END, obj_data)
+            print("Refreshing plot with data: ", data)
+            if data and all(isinstance(d, dict) for d in data):
+                temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
+                hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
+                pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+                temp_plot.set_data(temp_times, list(data[0].values()))
+                hum_plot.set_data(hum_times, list(data[1].values()))
+                pres_plot.set_data(pres_times, list(data[2].values()))
+                # Autoscale each axis independently
+                ax.relim()
+                ax.autoscale_view()
+                ax2.relim()
+                ax2.autoscale_view()
+                ax3.relim()
+                ax3.autoscale_view()
+                canvas.draw()
+        except Exception as e:
+            print("Error in refresh_plot:", e)
+        window.after(2000, refresh_plot)  # Schedule next update in 2000 ms
+
+    refresh_plot()  # Start the timer
 
     # if button makes sense
     stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red')
@@ -74,7 +152,10 @@ def main():
     expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
     img = ImageTk.PhotoImage(expandedImg)
     image_label = tk.Label(right_frame, image=img, background='lightblue')
-    image_label.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+    object_label = tk.Label(right_frame, text="Object Type: Unknown", background='lightblue')
+    object_label.pack(side=tk.TOP, pady=(70,0))
+    image_label.pack(side=tk.TOP, fill=tk.BOTH)#, expand=1
+    
     #previous images
     for i in range(1, len(img_list)):
         new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])

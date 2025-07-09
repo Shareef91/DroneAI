@@ -27,6 +27,7 @@ running = True
 
 wQueue = Queue()
 imgQueue = Queue()
+objQueue = Queue()
 
 class WeatherData:
     def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
@@ -48,7 +49,7 @@ def read_weather():
         humidity = bme280.relative_humidity
         pressure = bme280.pressure
         altitude = bme280.altitude
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now()
 
         # add to struct
         WeatherStruct.time = timestamp
@@ -64,8 +65,7 @@ def read_weather():
 
         # add data to a csv file with a column for each data point as well as time.
         with open("weather_data.csv", "a") as f:
-            f.write(f"{timestamp},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
-
+                f.write(f"{timestamp},{float(temperature):.1f},{float(humidity):.1f},{float(pressure):.1f},{float(altitude):.2f}\n")
         # push the data to a queue for transmission (first in first out)
         wQueue.put(WeatherStruct)
 
@@ -125,6 +125,8 @@ class LoRaTransmitter:
         while running:
             if not wQueue.empty():
                 self.send_weather(wQueue.get())
+            if not objQueue.empty():
+                self.send("OBJ:" + objQueue.get())  # Send object ID
             if not imgQueue.empty():
                 self.send_image(imgQueue.get())
 
@@ -138,8 +140,10 @@ class LoRaTransmitter:
         self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
 
         for i in range(total):
-            if not wQueue.empty():
+            while not wQueue.empty():
                 self.send_weather(wQueue.get())
+            while not objQueue.empty():
+                self.send("OBJ:" + objQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
@@ -170,8 +174,10 @@ if __name__ == "__main__":
     LoRaSend = LoRaTransmitter()
     threading.Thread(target=read_weather, daemon=True).start()
     threading.Thread(target=LoRaSend.loop, daemon=True).start()
-
-    imgQueue.put("img_14.png")  # Example image to send
+    objQueue.put("OBJ:I SEE YOU")  # Example object ID to send
+    objQueue.put("OBJ:I SEE YOU AGAIN")  # Example object ID to send
+    objQueue.put("OBJ:I SEE YOU A THIRD TIME")  # Example object ID to send
+    #imgQueue.put("img_14.png")  # Example image to send
     try:
         while True:
             time.sleep(1)
