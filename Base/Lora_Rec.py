@@ -106,7 +106,7 @@ class LoRaReceiver:
         self.ser.write(f"ACK {data}\n".encode('utf-8'))
     
     def OBJ_rec(self, data):
-        obj_data = data[4:].strip()
+        obj_data = data[4:].strip("OBJ:")
         print(f"Object Data Received: {obj_data}")
         self.objQueue.put(obj_data)
         self.ser.write(f"ACK {data}\n".encode('utf-8'))
