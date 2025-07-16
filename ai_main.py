@@ -248,21 +248,15 @@ def parse_detections(metadata: dict):
         if score > threshold
     ]
 
-    
-    if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
-        filename = save_detection_image(picam2, "detections")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Create object summary without weather
-        categories = list(set([str(det.category) for det in last_detections]))
-        obj_summary = ", ".join(categories)
-
-    # Queue image and detection message
-        imgQueue.put(filename)
-        objQueue.put(f"{timestamp}: Detected {obj_summary}")
-        print(f"Queued to send -> Image: {filename}, Message: {obj_summary}")
-
+         if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
+        categories = list(set([det.category for det in last_detections]))
+        for obj in categories:
+            objQueue.put(obj)  # Only push object name as string
+            print(f"Detected object: {obj}")
         last_sent_time = time.time()
+
+    
+        
 
 
     
