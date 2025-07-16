@@ -209,15 +209,15 @@ def parse_detections(metadata: dict):
     ]
 
     if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    categories = list(set([det.category for det in last_detections]))
-    obj_summary = ", ".join(categories)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        categories = list(set([det.category for det in last_detections]))
+        obj_summary = ", ".join(categories)
 
     # Just print and queue the object summary string
-    print(f"[{timestamp}] Detected objects: {obj_summary}")
-    objQueue.put(f"[{timestamp}] Detected: {obj_summary}")
+        print(f"[{timestamp}] Detected objects: {obj_summary}")
+        objQueue.put(f"[{timestamp}] Detected: {obj_summary}")
 
-    last_sent_time = time.time()
+        last_sent_time = time.time()
 
 
     
