@@ -157,23 +157,20 @@ class LoRaTransmitter:
             if not objQueue.empty():
                 objID = objQueue.get()
                 self.obj_Check(objID)
-            if not imgQueue.empty():
-                imgPath = imgQueue.get()
-                if imgPath in self.detected_objects:
-                    continue
-                self.send_image(imgPath)
+           # if not imgQueue.empty():
+               # imgPath = imgQueue.get()
+              #  if imgPath in self.detected_objects:
+                 #   continue
+                #self.send_image(imgPath)
                 #add to detected objects
-                self.detected_objects.add(imgPath)
+               # self.detected_objects.add(imgPath)
     
     def obj_Check(self, objID):
         now = time.time()
         print("Object detected:", objID)
-       # expired = [k for k, v in self.detected_recently.items() if now - v > DET_WAIT_SEC]
-       # for k in expired:
-       #     del self.detected_recently[k]
-       # if objID not in self.detected_recently:
-         #   self.send("OBJ:" + objID)  # Send object ID
-          #  self.detected_recently[objID] = now
+         if objID not in self.detected_recently:
+             self.send("OBJ:" + objID)  # Send the full string
+             self.detected_recently[objID] = no
 ##
     def send_image(self, image_path):
          pass
@@ -212,11 +209,16 @@ def parse_detections(metadata: dict):
     ]
 
     if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
-        categories = list(set([det.category for det in last_detections]))
-        for obj in categories:
-            objQueue.put(obj)  # Only push object name as string
-            print(f"Detected object: {obj}")
-        last_sent_time = time.time()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    categories = list(set([det.category for det in last_detections]))
+    obj_summary = ", ".join(categories)
+
+    # Just print and queue the object summary string
+    print(f"[{timestamp}] Detected objects: {obj_summary}")
+    objQueue.put(f"[{timestamp}] Detected: {obj_summary}")
+
+    last_sent_time = time.time()
+
 
     
         
