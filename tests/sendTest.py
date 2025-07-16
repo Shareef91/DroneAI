@@ -17,7 +17,7 @@ from adafruit_bme280 import basic as adafruit_bme280
 
 last_detections = []
 last_sent_time = 0
-COOLDOWN_SEC = 5
+COOLDOWN_SEC = 20
 DHT_SENSOR = Adafruit_DHT.DHT22
 DHT_PIN = 4
 CHUNK_SIZE = 200
@@ -78,6 +78,8 @@ class LoRaTransmitter:
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
         self.weatherCounter = 0
+        self.detected_objects = set()
+        self.detected_recently = {}
 
     def send(self, message):
         retry_count = 0
@@ -127,9 +129,23 @@ class LoRaTransmitter:
             if not wQueue.empty():
                 self.send_weather(wQueue.get())
             if not objQueue.empty():
-                self.send("OBJ:" + objQueue.get())  # Send object ID
+                objID = objQueue.get()
+                now = time.time()
+
+                expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
+                for k in expired:
+                    del self.detected_recently[k]
+
+                if objID not in self.detected_recently:
+                    self.send("OBJ:" + objID)  # Send object ID
+                    self.detected_recently[objID] = now
             if not imgQueue.empty():
-                self.send_image(imgQueue.get())
+                imgPath = imgQueue.get()
+                if imgPath in self.detected_objects:
+                    continue
+                self.send_image(imgPath)
+                #add to detected objects
+                self.detected_objects.add(imgPath)
 
     
 # --- Camera Detection Class ---
@@ -196,10 +212,14 @@ if __name__ == "__main__":
     LoRaSend = LoRaTransmitter()
     threading.Thread(target=read_weather, daemon=True).start()
     threading.Thread(target=LoRaSend.loop, daemon=True).start()
-    objQueue.put("OBJ:I SEE YOU")  # Example object ID to send
-    objQueue.put("OBJ:I SEE YOU AGAIN")  # Example object ID to send
-    objQueue.put("OBJ:I SEE YOU A THIRD TIME")  # Example object ID to send
+    objQueue.put("I SEE YOU")  # Example object ID to send
+    objQueue.put("I SEE YOU AGAIN")  # Example object ID to send
+    objQueue.put("I SEE YOU A THIRD TIME")  # Example object ID to send
+    objQueue.put("I SEE YOU A THIRD TIME")
     #imgQueue.put("img_14.png")  # Example image to send
+    #wait 25 sec
+    time.sleep(25)
+    objQueue.put("I SEE YOU A THIRD TIME")
     try:
         while True:
             time.sleep(1)
