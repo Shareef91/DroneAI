@@ -252,8 +252,8 @@ def parse_detections(metadata: dict):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         temperature, humidity = read_weather()
         weather_info = f" Temp: {temperature}C Hum: {humidity}%" if temperature and humidity else " Weather: N/A"
-        lora.send(f"{timestamp}: Detected object.{weather_info}")
-        lora.send_image(filename)
+        imgQueue.put(filename)
+        objQueue.put(f"{timestamp}: Detected object.{weather_info}")
         last_sent_time = time.time()
 
     return last_detections
