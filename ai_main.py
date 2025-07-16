@@ -168,9 +168,9 @@ class LoRaTransmitter:
     def obj_Check(self, objID):
         now = time.time()
         print("Object detected:", objID)
-         if objID not in self.detected_recently:
-             self.send("OBJ:" + objID)  # Send the full string
-             self.detected_recently[objID] = no
+        if objID not in self.detected_recently:
+            self.send("OBJ:" + objID)  # Send the full string
+            self.detected_recently[objID] = no
 ##
     def send_image(self, image_path):
          pass
