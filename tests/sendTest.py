@@ -216,6 +216,7 @@ if __name__ == "__main__":
     objQueue.put("I SEE YOU AGAIN")  # Example object ID to send
     objQueue.put("I SEE YOU A THIRD TIME")  # Example object ID to send
     objQueue.put("I SEE YOU A THIRD TIME")
+    objQueue.put("TESTYPOO")
     #imgQueue.put("img_14.png")  # Example image to send
     #wait 25 sec
     time.sleep(25)
