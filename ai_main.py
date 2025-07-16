@@ -26,7 +26,7 @@ from picamera2.devices.imx500 import (
 
 last_detections = []
 last_sent_time = 0
-COOLDOWN_SEC = 5
+COOLDOWN_SEC = 20
 DHT_SENSOR = Adafruit_DHT.DHT22
 DHT_PIN = 4
 CHUNK_SIZE = 200
@@ -34,6 +34,18 @@ MAX_RETRIES = 3
 
 running = True
 
+wQueue = Queue()
+imgQueue = Queue()
+objQueue = Queue()
+
+class Detection:
+    def __init__(self, coords, category, conf, metadata):
+        self.category = category
+        self.conf = conf
+        self.box = imx500.convert_inference_coords(coords, metadata, picam2)
+
+
+# should be run as a seperate thread
 class WeatherData:
     def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
         self.time = time
@@ -44,17 +56,6 @@ class WeatherData:
 
 WeatherStruct = WeatherData()
 
-wQueue = Queue()
-imgQueue = Queue()
-
-class Detection:
-    def __init__(self, coords, category, conf, metadata):
-        self.category = category
-        self.conf = conf
-        self.box = imx500.convert_inference_coords(coords, metadata, picam2)
-
-
-# should be run as a seperate thread
 def read_weather():
     i2c = board.I2C()
     bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, 0x76)
@@ -65,7 +66,7 @@ def read_weather():
         humidity = bme280.relative_humidity
         pressure = bme280.pressure
         altitude = bme280.altitude
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now()
 
         # add to struct
         WeatherStruct.time = timestamp
@@ -81,8 +82,7 @@ def read_weather():
 
         # add data to a csv file with a column for each data point as well as time.
         with open("weather_data.csv", "a") as f:
-            f.write(f"{timestamp},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
-
+                f.write(f"{timestamp},{float(temperature):.1f},{float(humidity):.1f},{float(pressure):.1f},{float(altitude):.2f}\n")
         # push the data to a queue for transmission (first in first out)
         wQueue.put(WeatherStruct)
 
@@ -103,10 +103,12 @@ class LoRaTransmitter:
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
         self.weatherCounter = 0
+        self.detected_objects = set()
+        self.detected_recently = {}
 
     def send(self, message):
         retry_count = 0
-        while retry_count <= MAX_RETRIES:
+        while retry_count < MAX_RETRIES:
             self.ser.write((message + "\n").encode('utf-8'))
             start_time = time.time()
             ack_received = False
@@ -151,8 +153,26 @@ class LoRaTransmitter:
         while running:
             if not wQueue.empty():
                 self.send_weather(wQueue.get())
+            if not objQueue.empty():
+                objID = objQueue.get()
+                self.obj_Check(objID)
             if not imgQueue.empty():
-                self.send_image(imgQueue.get())
+                imgPath = imgQueue.get()
+                if imgPath in self.detected_objects:
+                    continue
+                self.send_image(imgPath)
+                #add to detected objects
+                self.detected_objects.add(imgPath)
+    
+    def obj_Check(self, objID):
+        now = time.time()
+
+        expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
+        for k in expired:
+            del self.detected_recently[k]
+        if objID not in self.detected_recently:
+            self.send("OBJ:" + objID)  # Send object ID
+            self.detected_recently[objID] = now
 
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
@@ -160,10 +180,14 @@ class LoRaTransmitter:
 
         total = (len(b64_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
         print(f"Sending image in {total} packets...")
+        print("Image transmission ready. Sending object ID")
+        self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
 
         for i in range(total):
-            if not wQueue.empty():
+            while not wQueue.empty():
                 self.send_weather(wQueue.get())
+            while not objQueue.empty():
+                self.obj_Check(objQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
@@ -186,11 +210,9 @@ class LoRaTransmitter:
                     time.sleep(0.2)
             time.sleep(0.1)
 
-        print("Image transmission completed. Sending object ID")
-        self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
-
     def close(self):
         self.ser.close()
+
 
 def parse_detections(metadata: dict):
     global last_detections, last_sent_time
