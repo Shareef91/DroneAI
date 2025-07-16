@@ -60,9 +60,19 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     # --- Add a frame and Listbox for object types ---
     object_list_frame = tk.Frame(right_frame, background='lightblue')
     object_list_frame.pack(side=tk.TOP, fill=tk.X, pady=(10, 0))
-    tk.Label(object_list_frame, text="Detected Object Types:", background='lightblue', font=('Arial', 12, 'bold')).pack(anchor='w')
-    object_listbox = tk.Listbox(object_list_frame, height=6, width=30)
-    object_listbox.pack(anchor='w', padx=10, pady=(0, 10))
+
+    # Add a vertical scrollbar to the Listbox
+    object_scrollbar = tk.Scrollbar(object_list_frame, orient=tk.VERTICAL)
+    object_listbox = tk.Listbox(
+        object_list_frame,
+        height=6,
+        width=30,
+        yscrollcommand=object_scrollbar.set
+    )
+    object_scrollbar.config(command=object_listbox.yview)
+    object_listbox.pack(side=tk.LEFT, anchor='w', padx=10, pady=(0, 10), fill=tk.BOTH, expand=True)
+    object_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
     detected_objects = {}
     # Exit button in the top right corner
     exit_btn = tk.Button(window, text="Exit", command=window.destroy, background='orange', font=('Arial', 12, 'bold'))
@@ -130,6 +140,8 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                 if obj_data and obj_data not in detected_objects:
                     detected_objects[obj_data] = 1
                     object_listbox.insert(tk.END, f" {obj_data}: ({detected_objects[obj_data]})")
+                    # Autoscroll to the bottom when a new item is added
+                    object_listbox.yview_moveto(1.0)
                 
             print("Refreshing plot with data: ", data)
             if data and all(isinstance(d, dict) for d in data):
