@@ -329,19 +329,19 @@ if __name__ == "__main__":
         lora_thread.start()
 
         while True:
-            metadata = picam2.capture_metadata()
-            if metadata:
-                print("Metadata received:", metadata.keys())
-                outputs = get_outputs(metadata)
-                print("AI Outputs:", outputs)
-                if outputs is not None:
-                    print("Calling parse_detections()...")
-                    parse_detections(metadata)
-                else:
-                    print("No outputs in metadata.")
-            else:
-                print("No metadata received.")
-            time.sleep(0.1)
+                try:
+                    array = picam2.capture_array()
+                    inference_result = picam2.run_inference(array)
+
+                    if inference_result:
+                        parse_detections(inference_result)
+                    else:
+                         print("No AI inference result.")
+
+                    time.sleep(0.1)
+                except Exception as e:
+                    print("Error during detection loop:", e)
+
 
 
     except KeyboardInterrupt:
