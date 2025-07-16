@@ -18,6 +18,7 @@ dict2 = {}
 dict3 = {}
 dict4 = {}
 img_list = ["../lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholder.png
+rec_done = False
 
 def update_plot(data_val):
     if data_val is not None:
@@ -42,6 +43,9 @@ def display_prev_image(label, img):
     label.image = ready_img  # Keep a reference to avoid garbage collection
     return label
 
+def stop_receiving():
+        global rec_done
+        rec_done = True
 
 def main(wQueue=None, objQueue=None, imgQueue=None):
     window = tk.Tk()
@@ -132,40 +136,41 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     # Timer event to update the plot
     def refresh_plot():
         try:
-            data_val = None
-            if wQueue and not wQueue.empty():
-                data_val = wQueue.get_nowait()
-            data = update_plot(data_val)
-            # --- Update object type list if new object detected ---
-            if objQueue and not objQueue.empty():
-                obj_data = objQueue.get_nowait() # string representing the object type
-                if obj_data and obj_data in detected_objects:
-                    detected_objects[obj_data] += 1
-                    obj_index = list(detected_objects.keys()).index(obj_data)
-                    object_listbox.delete(obj_index)
-                    object_listbox.insert(obj_index, f" {obj_data}: ({detected_objects[obj_data]})")
-                if obj_data and obj_data not in detected_objects:
-                    detected_objects[obj_data] = 1
-                    object_listbox.insert(tk.END, f" {obj_data}: ({detected_objects[obj_data]})")
-                    # Autoscroll to the bottom when a new item is added
-                    object_listbox.yview_moveto(1.0)
-                
-            print("Refreshing plot with data: ", data)
-            if data and all(isinstance(d, dict) for d in data):
-                temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
-                hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
-                pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
-                temp_plot.set_data(temp_times, list(data[0].values()))
-                hum_plot.set_data(hum_times, list(data[1].values()))
-                pres_plot.set_data(pres_times, list(data[2].values()))
-                # Autoscale each axis independently
-                top_ax.relim()
-                top_ax.autoscale_view()
-                top_ax2.relim()
-                top_ax2.autoscale_view()
-                bot_ax2.relim()
-                bot_ax2.autoscale_view()
-                canvas.draw()
+            if not rec_done:
+                data_val = None
+                if wQueue and not wQueue.empty():
+                    data_val = wQueue.get_nowait()
+                data = update_plot(data_val)
+                # --- Update object type list if new object detected ---
+                if objQueue and not objQueue.empty():
+                    obj_data = objQueue.get_nowait() # string representing the object type
+                    if obj_data and obj_data in detected_objects:
+                        detected_objects[obj_data] += 1
+                        obj_index = list(detected_objects.keys()).index(obj_data)
+                        object_listbox.delete(obj_index)
+                        object_listbox.insert(obj_index, f" {obj_data}: ({detected_objects[obj_data]})")
+                    if obj_data and obj_data not in detected_objects:
+                        detected_objects[obj_data] = 1
+                        object_listbox.insert(tk.END, f" {obj_data}: ({detected_objects[obj_data]})")
+                        # Autoscroll to the bottom when a new item is added
+                        object_listbox.yview_moveto(1.0)
+                    
+                print("Refreshing plot with data: ", data)
+                if data and all(isinstance(d, dict) for d in data):
+                    temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
+                    hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
+                    pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+                    temp_plot.set_data(temp_times, list(data[0].values()))
+                    hum_plot.set_data(hum_times, list(data[1].values()))
+                    pres_plot.set_data(pres_times, list(data[2].values()))
+                    # Autoscale each axis independently
+                    top_ax.relim()
+                    top_ax.autoscale_view()
+                    top_ax2.relim()
+                    top_ax2.autoscale_view()
+                    bot_ax2.relim()
+                    bot_ax2.autoscale_view()
+                    canvas.draw()
         except Exception as e:
             print("Error in refresh_plot:", e)
         window.after(2000, refresh_plot)  # Schedule next update in 2000 ms
@@ -173,7 +178,8 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     refresh_plot()  # Start the timer
 
     # if button makes sense
-    stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red')
+    
+    stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red', command=stop_receiving)
     stop_rec_btn.pack(side=tk.LEFT, anchor='s', pady=20)
     # Display the image on the right side of the frame
     display_img = Image.open(img_list[0])
