@@ -261,6 +261,10 @@ def parse_detections(metadata: dict):
         imgQueue.put(filename)
         objQueue.put(f"{timestamp}: Detected {obj_summary}")
         print(f"Queued: {filename}, {obj_summary}")
+        print("Detection boxes:", boxes)
+        print("Detection scores:", scores)
+        print("Detection classes:", classes)
+
 
         last_sent_time = time.time()
 
