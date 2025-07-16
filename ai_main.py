@@ -306,9 +306,12 @@ if __name__ == "__main__":
         print("Initializing camera and AI model...")
         picam2 = Picamera2()
 
-        config = picam2.create_preview_configuration(controls={"FrameRate": 30})
-        config['ai'] = {"model": args.model}
-        picam2.configure(config)
+        config = picam2.create_preview_configuration(controls={
+             "FrameRate": 30,
+             "ai.enable": True,
+             "ai.model": args.model
+        })
+
 
         imx500 = picam2
         intrinsics = NetworkIntrinsics()
