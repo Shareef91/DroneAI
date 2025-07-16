@@ -83,7 +83,7 @@ class LoRaTransmitter:
 
     def send(self, message):
         retry_count = 0
-        while retry_count <= MAX_RETRIES:
+        while retry_count < MAX_RETRIES:
             self.ser.write((message + "\n").encode('utf-8'))
             start_time = time.time()
             ack_received = False
