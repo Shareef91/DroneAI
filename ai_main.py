@@ -248,7 +248,7 @@ def parse_detections(metadata: dict):
         if score > threshold
     ]
 
-         if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
+    if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
         categories = list(set([det.category for det in last_detections]))
         for obj in categories:
             objQueue.put(obj)  # Only push object name as string
