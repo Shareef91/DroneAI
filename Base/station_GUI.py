@@ -43,6 +43,7 @@ def display_prev_image(label, img):
 
 def main(wQueue=None, objQueue=None, imgQueue=None):
     window = tk.Tk()
+    window.attributes('-fullscreen', True)
     window.title("Sensor Data and Image Display")
     window.geometry("700x500")
 
@@ -107,7 +108,7 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     fig.patch.set_facecolor('lightblue')
     canvas = FigureCanvasTkAgg(fig, master=window)
     canvas.draw()
-    canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60)
+    canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60, padx=20)
 
     # Timer event to update the plot
     def refresh_plot():
