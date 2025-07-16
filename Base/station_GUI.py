@@ -64,7 +64,9 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     object_listbox = tk.Listbox(object_list_frame, height=6, width=30)
     object_listbox.pack(anchor='w', padx=10, pady=(0, 10))
     detected_objects = {}
-
+    # Exit button in the top right corner
+    exit_btn = tk.Button(window, text="Exit", command=window.destroy, background='orange', font=('Arial', 12, 'bold'))
+    exit_btn.place(relx=1.0, rely=0.0, anchor='ne', x=-10, y=10)
     # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
