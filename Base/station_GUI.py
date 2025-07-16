@@ -126,10 +126,10 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     detected_objects[obj_data] += 1
                     obj_index = list(detected_objects.keys()).index(obj_data)
                     object_listbox.delete(obj_index)
-                    object_listbox.insert(obj_index, f"{obj_data}: ({detected_objects[obj_data]})")
+                    object_listbox.insert(obj_index, f" {obj_data}: ({detected_objects[obj_data]})")
                 if obj_data and obj_data not in detected_objects:
                     detected_objects[obj_data] = 1
-                    object_listbox.insert(tk.END, f"{obj_data}: ({detected_objects[obj_data]})")
+                    object_listbox.insert(tk.END, f" {obj_data}: ({detected_objects[obj_data]})")
                 
             print("Refreshing plot with data: ", data)
             if data and all(isinstance(d, dict) for d in data):
