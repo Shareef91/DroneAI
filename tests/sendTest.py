@@ -72,6 +72,7 @@ def read_weather():
         time.sleep(5)
 
 
+
 class LoRaTransmitter:
     def __init__(self, port="/dev/ttyS0", baudrate=9600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
@@ -129,6 +130,27 @@ class LoRaTransmitter:
                 self.send("OBJ:" + objQueue.get())  # Send object ID
             if not imgQueue.empty():
                 self.send_image(imgQueue.get())
+
+    
+# --- Camera Detection Class ---
+class CameraDetector:
+    def __init__(self):
+        self.camera = Picamera2()
+        self.camera.start()
+        self.image_counter = 0
+
+    def capture_and_queue(self):
+        frame = self.camera.capture_array()
+        _, buffer = cv2.imencode('.jpg', frame)
+        jpg_bytes = buffer.tobytes()
+        b64 = base64.b64encode(jpg_bytes).decode('utf-8')
+        image_id = f"img_{self.image_counter}.jpg"
+        imgQueue.put((b64, image_id))
+        objQueue.put(image_id)
+        # Optional: Save locally
+        cv2.imwrite(f"detections/{image_id}", frame)
+        print(f"Frame captured and queued: {image_id}")
+        self.image_counter += 1
 
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
