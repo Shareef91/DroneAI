@@ -122,14 +122,15 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
             # --- Update object type list if new object detected ---
             if objQueue and not objQueue.empty():
                 obj_data = objQueue.get_nowait() # string representing the object type
-                if obj_data and obj_data not in detected_objects:
-                    detected_objects[obj_data] = 1
-                    object_listbox.insert(tk.END, f"{obj_data}: ({detected_objects[obj_data]})")
                 if obj_data and obj_data in detected_objects:
                     detected_objects[obj_data] += 1
                     obj_index = list(detected_objects.keys()).index(obj_data)
                     object_listbox.delete(obj_index)
-                    object_listbox.insert(obj_index, f"{obj_data}: ({detected_objects[obj_data]})")
+                    object_listbox.insert(obj_index, f" {obj_data}: ({detected_objects[obj_data]})")
+                if obj_data and obj_data not in detected_objects:
+                    detected_objects[obj_data] = 1
+                    object_listbox.insert(tk.END, f" {obj_data}: ({detected_objects[obj_data]})")
+                
             print("Refreshing plot with data: ", data)
             if data and all(isinstance(d, dict) for d in data):
                 temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
