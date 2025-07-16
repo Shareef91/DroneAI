@@ -16,6 +16,7 @@ import threading
 dict1 = {}
 dict2 = {}
 dict3 = {}
+dict4 = {}
 img_list = ["../lora_repo/images/placeholder.png"] # ../lora_repo/images/placeholder.png
 
 def update_plot(data_val):
@@ -24,7 +25,8 @@ def update_plot(data_val):
         dict1[data_val.time] = data_val.temp
         dict2[data_val.time] = data_val.humidity
         dict3[data_val.time] = data_val.pressure
-    weather_data = [dict1, dict2, dict3]
+        dict4[data_val.time] = data_val.altitude
+    weather_data = [dict1, dict2, dict3, dict4]
     
     return weather_data
 
@@ -79,48 +81,53 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     exit_btn.place(relx=1.0, rely=0.0, anchor='ne', x=-10, y=10)
     # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
-    ax = fig.add_subplot(111)
-    ax2 = ax.twinx()  # Second y-axis
-    ax3 = ax.twinx()  # Third y-axis
-
-    # Offset the third axis to the right
-    ax3.spines["right"].set_position(("axes", 1.15))
-    ax3.spines["right"].set_visible(True)
+    top_ax = fig.add_subplot(2, 1, 1)
+    bot_ax = fig.add_subplot(2, 1, 2)
+    top_ax2 = top_ax.twinx()
+    bot_ax2 = bot_ax.twinx()
 
     data = update_plot(None)  # Initial call to set up the plot
 
     temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
     hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
     pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+    alt_times = [datetime.fromisoformat(str(k)) for k in data[3].keys()]
 
-    temp_plot, = ax.plot(temp_times, list(data[0].values()), label="Temperature", color='tab:red')
-    hum_plot, = ax2.plot(hum_times, list(data[1].values()), label="Humidity", color='tab:blue')
-    pres_plot, = ax3.plot(pres_times, list(data[2].values()), label="Pressure", color='tab:green')
+    temp_plot, = top_ax.plot(temp_times, list(data[0].values()), label="Temperature", color='tab:red')
+    hum_plot, = top_ax2.plot(hum_times, list(data[1].values()), label="Humidity", color='tab:blue')
+    pres_plot, = bot_ax.plot(pres_times, list(data[2].values()), label="Pressure", color='tab:green')
+    alt_plot, = bot_ax2.plot(alt_times, list(data[3].values()), label="Altitude", color='tab:purple')  # Placeholder for altitude
 
-    ax.set_ylabel("Temperature")
-    ax2.set_ylabel("Humidity")
-    ax3.set_ylabel("Pressure")
+    top_ax.set_ylabel("Temperature")
+    top_ax2.set_ylabel("Humidity")
+    bot_ax.set_ylabel("Pressure")
+    bot_ax2.set_ylabel("Altitude")
 
     # Set axis colors for clarity
-    ax.yaxis.label.set_color('tab:red')
-    ax2.yaxis.label.set_color('tab:blue')
-    ax3.yaxis.label.set_color('tab:green')
-    ax.tick_params(axis='y', colors='tab:red')
-    ax2.tick_params(axis='y', colors='tab:blue')
-    ax3.tick_params(axis='y', colors='tab:green')
+    top_ax.yaxis.label.set_color('tab:red')
+    top_ax2.yaxis.label.set_color('tab:blue')
+    bot_ax.yaxis.label.set_color('tab:green')
+    bot_ax2.yaxis.label.set_color('tab:purple')
+    top_ax.tick_params(axis='y', colors='tab:red')
+    top_ax2.tick_params(axis='y', colors='tab:blue')
+    bot_ax.tick_params(axis='y', colors='tab:green')
+    bot_ax2.tick_params(axis='y', colors='tab:purple')
 
     # Set x-axis label
-    ax.set_xlabel("Time")
+    bot_ax.set_xlabel("Time")
 
     # Combine legends
-    lines = [temp_plot, hum_plot, pres_plot]
-    labels = [l.get_label() for l in lines]
-    ax.legend(lines, labels, loc='upper left')
+    top_lines = [temp_plot, hum_plot]
+    bot_lines = [pres_plot, alt_plot]
+    top_labels = [l.get_label() for l in top_lines]
+    bot_labels = [l.get_label() for l in bot_lines]
+    top_ax.legend(top_lines, top_labels, loc='upper left')
+    bot_ax.legend(bot_lines, bot_labels, loc='upper left')
 
     fig.patch.set_facecolor('lightblue')
-    canvas = FigureCanvasTkAgg(fig, master=window)
+    canvas = FigureCanvasTkAgg(fig, master=frame)
     canvas.draw()
-    canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60, padx=20)
+    canvas.get_tk_widget().pack(in_=frame, side=tk.LEFT, fill=tk.BOTH, expand=1, pady=60)
 
     # Timer event to update the plot
     def refresh_plot():
@@ -152,12 +159,12 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                 hum_plot.set_data(hum_times, list(data[1].values()))
                 pres_plot.set_data(pres_times, list(data[2].values()))
                 # Autoscale each axis independently
-                ax.relim()
-                ax.autoscale_view()
-                ax2.relim()
-                ax2.autoscale_view()
-                ax3.relim()
-                ax3.autoscale_view()
+                top_ax.relim()
+                top_ax.autoscale_view()
+                top_ax2.relim()
+                top_ax2.autoscale_view()
+                bot_ax2.relim()
+                bot_ax2.autoscale_view()
                 canvas.draw()
         except Exception as e:
             print("Error in refresh_plot:", e)
@@ -184,11 +191,11 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     window.mainloop()
 
 def test_update():
-    w_data1 = WeatherData(1, 10, 7, 15)
-    w_data2 = WeatherData(2, 5, 12, 9)
-    w_data3 = WeatherData(3, 20, 8, 11)
-    w_data4 = WeatherData(4, 15, 18, 6)
-    w_data5 = WeatherData(5, 2, 24, 13)
+    w_data1 = WeatherData(datetime(2025, 4, 20, 15, 30, 0, 123456), 10, 7, 15, 3)
+    w_data2 = WeatherData(datetime(2025, 4, 20, 15, 30, 2, 123456), 5, 12, 9, 5)
+    w_data3 = WeatherData(datetime(2025, 4, 20, 15, 30, 4, 123456), 20, 8, 11, 7)
+    w_data4 = WeatherData(datetime(2025, 4, 20, 15, 30, 6, 123456), 15, 18, 6, 9)
+    w_data5 = WeatherData(datetime(2025, 4, 20, 15, 30, 8, 123456), 2, 24, 13, 15)
     for data in [w_data1, w_data2, w_data3, w_data4, w_data5]:
         update_plot(data)
     img_l = ["lora_repo/images/img.png", "lora_repo/images/img2.png", "lora_repo/images/img3.png", "lora_repo/images/compressed_img_18.jpg"]
