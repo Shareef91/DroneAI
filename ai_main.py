@@ -334,10 +334,18 @@ if __name__ == "__main__":
         while True:
             metadata = picam2.capture_metadata()
             if metadata:
-                np_outputs = get_outputs(metadata)
-                if np_outputs is not None:
-                    print("Detections received from AI metadata.")
+                print("Metadata received:", metadata.keys())
+                outputs = get_outputs(metadata)
+                print("AI Outputs:", outputs)
+                if outputs is not None:
+                    print("Calling parse_detections()...")
+                    parse_detections(metadata)
+                else:
+                    print("No outputs in metadata.")
+            else:
+                print("No metadata received.")
             time.sleep(0.1)
+
 
     except KeyboardInterrupt:
         print("\nShutting down...")
