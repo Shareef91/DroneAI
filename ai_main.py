@@ -247,7 +247,9 @@ def parse_detections(metadata: dict):
         for box, score, category in zip(boxes, scores, classes)
         if score > threshold
     ]
-     if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
+
+    
+    if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
         filename = save_detection_image(picam2, "detections")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
