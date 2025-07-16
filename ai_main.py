@@ -246,17 +246,25 @@ def parse_detections(metadata: dict):
         for box, score, category in zip(boxes, scores, classes)
         if score > threshold
     ]
-
-    if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
+     if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
         filename = save_detection_image(picam2, "detections")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        temperature, humidity = read_weather()
-        weather_info = f" Temp: {temperature}C Hum: {humidity}%" if temperature and humidity else " Weather: N/A"
+    
+    # Format detection summary as a string
+        categories = list(set([det.category for det in last_detections]))
+        obj_summary = ", ".join(categories)
+
+    # Queue the image and object string
         imgQueue.put(filename)
-        objQueue.put(f"{timestamp}: Detected object.{weather_info}")
+        objQueue.put(f"{timestamp}: Detected {obj_summary}")
+        print(f"Queued: {filename}, {obj_summary}")
+
         last_sent_time = time.time()
 
-    return last_detections
+
+    
+
+    
 
 def draw_detections(request):
     """Draw detection boxes on the camera preview"""
