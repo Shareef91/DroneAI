@@ -167,13 +167,13 @@ class LoRaTransmitter:
     
     def obj_Check(self, objID):
         now = time.time()
-
-        expired = [k for k, v in self.detected_recently.items() if now - v > DET_WAIT_SEC]
-        for k in expired:
-            del self.detected_recently[k]
-        if objID not in self.detected_recently:
-            self.send("OBJ:" + objID)  # Send object ID
-            self.detected_recently[objID] = now
+        print("Object detected:", objID)
+       # expired = [k for k, v in self.detected_recently.items() if now - v > DET_WAIT_SEC]
+       # for k in expired:
+       #     del self.detected_recently[k]
+       # if objID not in self.detected_recently:
+         #   self.send("OBJ:" + objID)  # Send object ID
+          #  self.detected_recently[objID] = now
 
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
