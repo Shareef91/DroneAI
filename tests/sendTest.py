@@ -130,15 +130,7 @@ class LoRaTransmitter:
                 self.send_weather(wQueue.get())
             if not objQueue.empty():
                 objID = objQueue.get()
-                now = time.time()
-
-                expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
-                for k in expired:
-                    del self.detected_recently[k]
-
-                if objID not in self.detected_recently:
-                    self.send("OBJ:" + objID)  # Send object ID
-                    self.detected_recently[objID] = now
+                self.obj_Check(objID)
             if not imgQueue.empty():
                 imgPath = imgQueue.get()
                 if imgPath in self.detected_objects:
@@ -146,6 +138,16 @@ class LoRaTransmitter:
                 self.send_image(imgPath)
                 #add to detected objects
                 self.detected_objects.add(imgPath)
+    
+    def obj_Check(self, objID):
+        now = time.time()
+
+        expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
+        for k in expired:
+            del self.detected_recently[k]
+        if objID not in self.detected_recently:
+            self.send("OBJ:" + objID)  # Send object ID
+            self.detected_recently[objID] = now
 
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
@@ -160,7 +162,7 @@ class LoRaTransmitter:
             while not wQueue.empty():
                 self.send_weather(wQueue.get())
             while not objQueue.empty():
-                self.send("OBJ:" + objQueue.get())
+                self.obj_Check(objQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
@@ -256,6 +258,11 @@ if __name__ == "__main__":
     objQueue.put("I SEE YOU A THIRD TIME")  # Example object ID to send
     objQueue.put("I SEE YOU A THIRD TIME")
     objQueue.put("TESTYPOO")
+    objQueue.put("TESTYPOOpoo")
+    objQueue.put("TESTYPOOpoo1")
+    objQueue.put("TESTYPOOpoo2")
+    objQueue.put("TESTYPOOpoo3")
+    objQueue.put("TESTYPOOpoo4")
     #imgQueue.put("img_14.png")  # Example image to send
     #wait 25 sec
     time.sleep(25)
