@@ -26,7 +26,8 @@ from picamera2.devices.imx500 import (
 
 last_detections = []
 last_sent_time = 0
-COOLDOWN_SEC = 20
+DET_WAIT_SEC = 20
+COOLDOWN_SEC = 3
 DHT_SENSOR = Adafruit_DHT.DHT22
 DHT_PIN = 4
 CHUNK_SIZE = 200
@@ -167,7 +168,7 @@ class LoRaTransmitter:
     def obj_Check(self, objID):
         now = time.time()
 
-        expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
+        expired = [k for k, v in self.detected_recently.items() if now - v > DET_WAIT_SEC]
         for k in expired:
             del self.detected_recently[k]
         if objID not in self.detected_recently:
