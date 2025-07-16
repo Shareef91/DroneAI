@@ -252,19 +252,15 @@ def parse_detections(metadata: dict):
     if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
         filename = save_detection_image(picam2, "detections")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Format detection summary as a string
-        categories = list(set([det.category for det in last_detections]))
+
+    # Create object summary without weather
+        categories = list(set([str(det.category) for det in last_detections]))
         obj_summary = ", ".join(categories)
 
-    # Queue the image and object string
+    # Queue image and detection message
         imgQueue.put(filename)
         objQueue.put(f"{timestamp}: Detected {obj_summary}")
-        print(f"Queued: {filename}, {obj_summary}")
-        print("Detection boxes:", boxes)
-        print("Detection scores:", scores)
-        print("Detection classes:", classes)
-
+        print(f"Queued to send -> Image: {filename}, Message: {obj_summary}")
 
         last_sent_time = time.time()
 
@@ -306,11 +302,9 @@ if __name__ == "__main__":
         print("Initializing camera and AI model...")
         picam2 = Picamera2()
 
-        config = picam2.create_preview_configuration(controls={
-             "FrameRate": 30,
-             "ai.enable": True,
-             "ai.model": args.model
-        })
+        config = picam2.create_preview_configuration(main={"size": (640, 480)}, controls={"FrameRate": 30})
+        config['ai'] = {"model": args.model}
+
         picam2.configure(config)
 
         imx500 = picam2
