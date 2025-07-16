@@ -247,7 +247,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Detection with LoRa transmission")
     parser.add_argument("--model", type=str, help="Path to the AI model",
                        default="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk")
-    parser.add_argument("--threshold", type=float, default=0.55, help="Detection confidence threshold")
+    parser.add_argument("--threshold", type=float, default=0.3, help="Detection confidence threshold")
     parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold for NMS")
     parser.add_argument("--max-detections", type=int, default=10, help="Maximum number of detections")
     parser.add_argument("--lora-port", type=str, default="/dev/ttyS0", help="LoRa serial port")
