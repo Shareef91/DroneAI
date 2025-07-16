@@ -13,12 +13,16 @@ import Adafruit_DHT
 import threading
 from queue import Queue
 from adafruit_bme280 import basic as adafruit_bme280
-
-
 from picamera2 import MappedArray, Picamera2
+from picamera2.encoders import H264Encoder
+from picamera2.outputs import FileOutput
+
+
 from picamera2.devices import IMX500
-from picamera2.devices.imx500 import (NetworkIntrinsics,
-                                      postprocess_nanodet_detection)
+from picamera2.devices.imx500 import (
+    NetworkIntrinsics,
+    postprocess_nanodet_detection
+)
 
 last_detections = []
 last_sent_time = 0
@@ -241,47 +245,43 @@ def draw_detections(request):
             label = f"{detection.category}: {detection.conf:.2f}"
             cv2.putText(m.array, label, (int(x1), int(y1) - 10),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0, 0), 1)
+def get_outputs(metadata, add_batch=True):
+    return metadata.get("ai.outputs", None)
+
+def get_input_size():
+    return 320, 320  # Modify based on your actual model resolution
+
+# The rest of your code remains the same up until camera initialization
 
 if __name__ == "__main__":
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description="AI Detection with LoRa transmission")
     parser.add_argument("--model", type=str, help="Path to the AI model",
-                       default="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk")
+                        default="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk")
     parser.add_argument("--threshold", type=float, default=0.3, help="Detection confidence threshold")
     parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold for NMS")
     parser.add_argument("--max-detections", type=int, default=10, help="Maximum number of detections")
     parser.add_argument("--lora-port", type=str, default="/dev/ttyS0", help="LoRa serial port")
     parser.add_argument("--lora-baudrate", type=int, default=9600, help="LoRa baudrate")
     parser.add_argument("--preview", action="store_true", help="Show camera preview with detections")
-
     args = parser.parse_args()
 
     try:
-        # Initialize camera and AI model
         print("Initializing camera and AI model...")
-        if not IMX500.is_available():
-            print("ERROR: IMX500 not available. Make sure you're running on a compatible device.")
-            sys.exit(1)
+        picam2 = Picamera2()
 
-        picam2 = Picamera2(IMX500.load_network(args.model))
-
-        # Get model intrinsics
-        intrinsics = picam2.camera_manager.active_cameras[0].camera.controls.active_camera.model.net.intrinsics
-        imx500 = picam2.camera_manager.active_cameras[0].camera.controls.active_camera.model
-
-        # Configure camera
         config = picam2.create_preview_configuration(controls={"FrameRate": 30})
+        config['ai'] = {"model": args.model}
         picam2.configure(config)
 
-        # Initialize LoRa transmitter
+        imx500 = picam2
+        intrinsics = NetworkIntrinsics()
+
         print(f"Initializing LoRa transmitter on {args.lora_port}...")
         lora = LoRaTransmitter(port=args.lora_port, baudrate=args.lora_baudrate)
 
-        # Setup preview if requested
         if args.preview:
             picam2.post_callback = draw_detections
 
-        # Start camera
         print("Starting camera...")
         picam2.start(show_preview=args.preview)
 
@@ -289,33 +289,21 @@ if __name__ == "__main__":
         print(f"Detection threshold: {args.threshold}")
         print(f"Cooldown period: {COOLDOWN_SEC} seconds")
 
-        # Start weather data reading in a separate thread
         weather_thread = threading.Thread(target=read_weather, daemon=True)
-        #start lora in new thread
         lora_thread = threading.Thread(target=lora.loop, daemon=True)
-
         weather_thread.start()
         lora_thread.start()
-        # Main detection loop
+
         while True:
-            # Get camera metadata for AI inference
             metadata = picam2.capture_metadata()
-
             if metadata:
-                # Process detections
-                detections = parse_detections(metadata)
-
-                if detections:
-                    print(f"Detected {len(detections)} objects")
-                    for i, det in enumerate(detections):
-                        print(f"  {i+1}: {det.category} (confidence: {det.conf:.2f})")
-
-            # Small delay to prevent excessive CPU usage
+                np_outputs = get_outputs(metadata)
+                if np_outputs is not None:
+                    print("Detections received from AI metadata.")
             time.sleep(0.1)
 
     except KeyboardInterrupt:
         print("\nShutting down...")
-                
     except serial.SerialException as e:
         print(f"LoRa communication error: {e}")
         print("Check LoRa device connection and port settings.")
@@ -324,7 +312,6 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
     finally:
-        # Cleanup
         try:
             running = False
             if 'lora' in locals():
@@ -341,7 +328,6 @@ if __name__ == "__main__":
                 weather_thread.join(timeout=1)
             if 'lora_thread' in locals() and lora_thread.is_alive():
                 lora_thread.join(timeout=1)
-            
             print("Cleanup completed.")
         except Exception as cleanup_error:
             print(f"Error during cleanup: {cleanup_error}")
