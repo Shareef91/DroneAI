@@ -311,7 +311,7 @@ if __name__ == "__main__":
              "ai.enable": True,
              "ai.model": args.model
         })
-
+        picam2.configure(config)
 
         imx500 = picam2
         intrinsics = NetworkIntrinsics()
