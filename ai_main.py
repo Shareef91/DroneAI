@@ -174,46 +174,9 @@ class LoRaTransmitter:
        # if objID not in self.detected_recently:
          #   self.send("OBJ:" + objID)  # Send object ID
           #  self.detected_recently[objID] = now
-
+##
     def send_image(self, image_path):
-        with open(image_path, "rb") as img_file:
-            b64_data = base64.b64encode(img_file.read()).decode("utf-8")
-
-        total = (len(b64_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
-        print(f"Sending image in {total} packets...")
-        print("Image transmission ready. Sending object ID")
-        self.send("ID:" + image_path.split('/')[-1])  # Send the image filename as object ID
-
-        for i in range(total):
-            while not wQueue.empty():
-                self.send_weather(wQueue.get())
-            while not objQueue.empty():
-                self.obj_Check(objQueue.get())
-            part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
-            packet = f"{i+1}/{total}:{part}\n"
-            retry_count = 0
-            while retry_count <= MAX_RETRIES:
-                self.ser.write(packet.encode('utf-8'))
-                start_time = time.time()
-                ack_received = False
-                while time.time() - start_time < 2:
-                    if self.ser.in_waiting:
-                        ack = self.ser.readline().decode('utf-8').strip()
-                        if ack == f"ACK {i+1}":
-                            ack_received = True
-                            break
-                if ack_received:
-                    print(f"Packet {i+1}/{total} acknowledged.")
-                    break
-                else:
-                    retry_count += 1
-                    print(f"Packet {i+1}/{total} not acknowledged. Retry {retry_count}/{MAX_RETRIES}...")
-                    time.sleep(0.2)
-            time.sleep(0.1)
-
-    def close(self):
-        self.ser.close()
-
+         pass
 
 def parse_detections(metadata: dict):
     global last_detections, last_sent_time
