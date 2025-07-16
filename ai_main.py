@@ -321,21 +321,14 @@ if __name__ == "__main__":
         lora_thread = threading.Thread(target=lora.loop, daemon=True)
         weather_thread.start()
         lora_thread.start()
-
         while True:
-                try:
-                    array = picam2.capture_array()
-                    inference_result = picam2.run_inference(array)
+            metadata = picam2.capture_metadata()
+            if metadata:
+                outputs = get_outputs(metadata)
+                if outputs is not None:
+                    parse_detections(metadata)
 
-                    if inference_result:
-                        parse_detections(inference_result)
-                    else:
-                         print("No AI inference result.")
-
-                    time.sleep(0.1)
-                except Exception as e:
-                    print("Error during detection loop:", e)
-
+        
 
 
     except KeyboardInterrupt:
