@@ -63,8 +63,10 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     tk.Label(object_list_frame, text="Detected Object Types:", background='lightblue', font=('Arial', 12, 'bold')).pack(anchor='w')
     object_listbox = tk.Listbox(object_list_frame, height=6, width=30)
     object_listbox.pack(anchor='w', padx=10, pady=(0, 10))
-    detected_objects = set()
-
+    detected_objects = {}
+    # Exit button in the top right corner
+    exit_btn = tk.Button(window, text="Exit", command=window.destroy, background='orange', font=('Arial', 12, 'bold'))
+    exit_btn.place(relx=1.0, rely=0.0, anchor='ne', x=-10, y=10)
     # display the plot
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
@@ -120,9 +122,15 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
             # --- Update object type list if new object detected ---
             if objQueue and not objQueue.empty():
                 obj_data = objQueue.get_nowait() # string representing the object type
+                if obj_data and obj_data in detected_objects:
+                    detected_objects[obj_data] += 1
+                    obj_index = list(detected_objects.keys()).index(obj_data)
+                    object_listbox.delete(obj_index)
+                    object_listbox.insert(obj_index, f"{obj_data}: ({detected_objects[obj_data]})")
                 if obj_data and obj_data not in detected_objects:
-                    detected_objects.add(obj_data)
-                    object_listbox.insert(tk.END, obj_data)
+                    detected_objects[obj_data] = 1
+                    object_listbox.insert(tk.END, f"{obj_data}: ({detected_objects[obj_data]})")
+                
             print("Refreshing plot with data: ", data)
             if data and all(isinstance(d, dict) for d in data):
                 temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
