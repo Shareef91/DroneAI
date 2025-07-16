@@ -173,7 +173,7 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
     img = ImageTk.PhotoImage(expandedImg)
     image_label = tk.Label(right_frame, image=img, background='lightblue')
-    object_label = tk.Label(right_frame, text="Object Type: Unknown", background='lightblue')
+    object_label = tk.Label(right_frame, text="Object Type: Child Drawing", background='lightblue')
     object_label.pack(side=tk.TOP, pady=(70,0))
     image_label.pack(side=tk.TOP, fill=tk.BOTH)#, expand=1
     
