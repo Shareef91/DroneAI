@@ -216,6 +216,7 @@ class LoRaTransmitter:
          
 
 def parse_detections(metadata: dict):
+    print("Parsing detections...")
     global last_detections, last_sent_time
     bbox_normalization = intrinsics.bbox_normalization
     bbox_order = intrinsics.bbox_order
