@@ -60,7 +60,7 @@ WeatherStruct = WeatherData()
 def read_weather():
     i2c = board.I2C()
     bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, 0x76)
-    bme280.sea_level_pressure = 1018.5
+    bme280.sea_level_pressure = 50.5
 
     while running:
         temperature = bme280.temperature
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Detection with LoRa transmission")
     parser.add_argument("--model", type=str, help="Path to the AI model",
                         default="/home/team3box/Documents/DroneAI/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk")
-    parser.add_argument("--threshold", type=float, default=0.05, help="Detection confidence threshold")
+    parser.add_argument("--threshold", type=float, default=0.8, help="Detection confidence threshold")
     parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold for NMS")
     parser.add_argument("--max-detections", type=int, default=10, help="Maximum number of detections")
     parser.add_argument("--lora-port", type=str, default="/dev/ttyS0", help="LoRa serial port")
