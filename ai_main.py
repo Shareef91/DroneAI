@@ -330,13 +330,17 @@ if __name__ == "__main__":
         while True:
             metadata = picam2.capture_metadata()
             if metadata:
-                outputs = get_outputs(metadata)
-                if outputs is not None:
-                    parse_detections(metadata)
+                print("Metadata keys:", list(metadata.keys()))
+                if "ai.outputs" in metadata:
+                    outputs = get_outputs(metadata)
+                    if outputs is not None:
+                        parse_detections(metadata)
+                    else:
+                        print("No AI outputs found in metadata.")
                 else:
-                    print("No AI outputs found in metadata.")
+                    print("No 'ai.outputs' in metadata.")
             else:
-                print("No AI outputs in metadata or metadata is empty.")
+                    print("Metadata is empty.")
 
         
 
