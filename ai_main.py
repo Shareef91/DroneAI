@@ -157,21 +157,24 @@ class LoRaTransmitter:
             if not objQueue.empty():
                 objID = objQueue.get()
                 self.obj_Check(objID)
-           # if not imgQueue.empty():
-               # imgPath = imgQueue.get()
-              #  if imgPath in self.detected_objects:
-                 #   continue
-                #self.send_image(imgPath)
+            if not imgQueue.empty():
+                imgPath = imgQueue.get()
+                if imgPath in self.detected_objects:
+                    continue
+                self.send_image(imgPath)
                 #add to detected objects
-               # self.detected_objects.add(imgPath)
+                self.detected_objects.add(imgPath)
     
     def obj_Check(self, objID):
         now = time.time()
-        print("Object detected:", objID)
+
+        expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
+        for k in expired:
+            del self.detected_recently[k]
         if objID not in self.detected_recently:
-            self.send("OBJ:" + objID)  # Send the full string
-            self.detected_recently[objID] = no
-##
+            self.send("OBJ:" + objID)  # Send object ID
+            self.detected_recently[objID] = now
+
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
             b64_data = base64.b64encode(img_file.read()).decode("utf-8")
@@ -252,7 +255,7 @@ def parse_detections(metadata: dict):
 
     # Just print and queue the object summary string
         print(f"[{timestamp}] Detected objects: {obj_summary}")
-        objQueue.put(f"[{timestamp}] Detected: {obj_summary}")
+        objQueue.put(f"{obj_summary}")
 
         last_sent_time = time.time()
 
