@@ -160,21 +160,25 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     temp_times = [datetime.fromisoformat(str(k)) for k in data[0].keys()]
                     hum_times = [datetime.fromisoformat(str(k)) for k in data[1].keys()]
                     pres_times = [datetime.fromisoformat(str(k)) for k in data[2].keys()]
+                    alt_times = [datetime.fromisoformat(str(k)) for k in data[3].keys()]
                     temp_plot.set_data(temp_times, list(data[0].values()))
                     hum_plot.set_data(hum_times, list(data[1].values()))
                     pres_plot.set_data(pres_times, list(data[2].values()))
+                    alt_plot.set_data(alt_times, list(data[3].values()))
                     # Autoscale each axis independently
                     top_ax.relim()
                     top_ax.autoscale_view()
                     top_ax2.relim()
                     top_ax2.autoscale_view()
+                    bot_ax.relim()
+                    bot_ax.autoscale_view()
                     bot_ax2.relim()
                     bot_ax2.autoscale_view()
                     canvas.draw()
         except Exception as e:
             print("Error in refresh_plot:", e)
         window.after(2000, refresh_plot)  # Schedule next update in 2000 ms
-
+ 
     refresh_plot()  # Start the timer
 
     # if button makes sense
