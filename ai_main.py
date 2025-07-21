@@ -60,7 +60,7 @@ WeatherStruct = WeatherData()
 def read_weather():
     i2c = board.I2C()
     bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, 0x76)
-    bme280.sea_level_pressure = 50.5
+    bme280.sea_level_pressure = 1015
 
     while running:
         temperature = bme280.temperature
@@ -329,10 +329,14 @@ if __name__ == "__main__":
         lora_thread.start()
         while True:
             metadata = picam2.capture_metadata()
-            if metadata:
+            if metadata and "ai.outputs" in metadata:
                 outputs = get_outputs(metadata)
                 if outputs is not None:
                     parse_detections(metadata)
+                else:
+                    print("No AI outputs found in metadata.")
+            else:
+                print("No AI outputs in metadata or metadata is empty.")
 
         
 
