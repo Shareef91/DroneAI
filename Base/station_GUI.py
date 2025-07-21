@@ -102,10 +102,10 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     pres_plot, = bot_ax.plot(pres_times, list(data[2].values()), label="Pressure", color='tab:green')
     alt_plot, = bot_ax2.plot(alt_times, list(data[3].values()), label="Altitude", color='tab:purple')  # Placeholder for altitude
 
-    top_ax.set_ylabel("Temperature")
-    top_ax2.set_ylabel("Humidity")
-    bot_ax.set_ylabel("Pressure")
-    bot_ax2.set_ylabel("Altitude")
+    top_ax.set_ylabel("Temperature (C)")
+    top_ax2.set_ylabel("Humidity (%)")
+    bot_ax.set_ylabel("Pressure (hPa)")
+    bot_ax2.set_ylabel("Altitude (m)")
 
     # Set axis colors for clarity
     top_ax.yaxis.label.set_color('tab:red')
