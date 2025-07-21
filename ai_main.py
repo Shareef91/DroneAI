@@ -329,7 +329,7 @@ if __name__ == "__main__":
         lora_thread.start()
         while True:
             metadata = picam2.capture_metadata()
-            if metadata and "ai.outputs" in metadata:
+            if metadata in metadata:
                 outputs = get_outputs(metadata)
                 if outputs is not None:
                     parse_detections(metadata)
