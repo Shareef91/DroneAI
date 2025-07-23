@@ -420,3 +420,33 @@ INFO:LORA :Serial Write: b'booboo\n'
 INFO:LORA :Serial Write: b'booboo\n'
 INFO:LORA :Serial Write: b'booboo\n'
 ERROR:LORA :Serial Exception: GetOverlappedResult failed (PermissionError(13, 'Access is denied.', None, 5)).
+ERROR:LORA :Couldn't connect with COM10.
+INFO:LORA :Connected with COM3 at 9600 baudrate.
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+ERROR:LORA :Serial Exception: GetOverlappedResult failed (PermissionError(13, 'Access is denied.', None, 5)).
+INFO:LORA :Serial Port Disconnected
+INFO:LORA :Connected with COM3 at 9600 baudrate.
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00\x00\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc0\x00\t\x00\x00\x00b\x00P\x03\x00\x00')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc0\x00\t\x00\x00\x00b\x00P\x03\x00\x00')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc0\x00\t\x00\x00\x00b\x00P\x03\x00\x00')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Write: bytearray(b'\xc1\x00\t')
+INFO:LORA :Serial Response: b'\xc1\x00\t\x00\x00\x00b\x00P\x03\x00\x00'
+INFO:LORA :Serial Port Disconnected

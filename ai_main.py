@@ -33,7 +33,7 @@ COOLDOWN_SEC = 3
 DHT_SENSOR = Adafruit_DHT.DHT22
 DHT_PIN = 4
 CHUNK_SIZE = 200
-MAX_RETRIES = 3
+MAX_RETRIES = 8
 
 running = True
 
@@ -174,7 +174,7 @@ class LoRaTransmitter:
     def send_weather(self, weatherToSend):
         message = f"W:{self.weatherCounter},{weatherToSend.time},{weatherToSend.temp:.2f},{weatherToSend.humidity:.2f},{weatherToSend.pressure:.2f},{weatherToSend.altitude:.2f}"
         retry_count = 0
-        while retry_count <= MAX_RETRIES:
+        while retry_count < MAX_RETRIES:
             self.ser.write((message + "\n").encode('utf-8'))
             start_time = time.time()
             ack_received = False
@@ -235,7 +235,7 @@ class LoRaTransmitter:
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
-            while retry_count <= MAX_RETRIES:
+            while retry_count < MAX_RETRIES:
                 self.ser.write(packet.encode('utf-8'))
                 start_time = time.time()
                 ack_received = False
