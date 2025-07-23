@@ -90,9 +90,24 @@ def read_weather():
         time.sleep(5)
 
 
-def save_detection_image(picam2, label, folder="detections"):
+def save_detection_image(picam2, label, detection=None, folder="detections"):
     frame = picam2.capture_array()
     os.makedirs(folder, exist_ok=True)
+
+    # If a detection is provided, crop the image to the bounding box
+    if detection is not None and hasattr(detection, "box"):
+        x, y, w, h = map(int, detection.box)
+        # Ensure bounding box is within image bounds
+        x = max(0, x)
+        y = max(0, y)
+        w = max(1, w)
+        h = max(1, h)
+        x2 = min(frame.shape[1], x + w)
+        y2 = min(frame.shape[0], y + h)
+        cropped = frame[y:y2, x:x2]
+    else:
+        cropped = frame
+
     # Check if a .jpg file with this label already exists in the folder
     existing_files = [f for f in os.getcwd if f.startswith(label) and f.endswith(".jpg")]
     if existing_files:
@@ -104,7 +119,7 @@ def save_detection_image(picam2, label, folder="detections"):
         filename = str(f"{label}.jpg")
         # Push to imgQueue only for the first detection
         imgQueue.put(filename)
-    cv2.imwrite(filename, frame)
+    cv2.imwrite(filename, cropped)
     print(f"[INFO] Saved detection image: {filename}")
     return filename
 
@@ -377,7 +392,7 @@ if __name__ == "__main__":
                     if detection.conf > args.threshold:
                         print(f"Detected object: {label} (confidence: {detection.conf:.2f})")
                         objQueue.put(label)
-                        # save_detection_image(picam2, label)
+                        save_detection_image(picam2, label, detection)
 
     except KeyboardInterrupt:
         print("\nShutting down...")
