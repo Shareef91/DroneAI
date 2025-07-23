@@ -175,6 +175,22 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     bot_ax2.relim()
                     bot_ax2.autoscale_view()
                     canvas.draw()
+
+                # Image update
+                if imgQueue and not imgQueue.empty():
+                    img_name = imgQueue.get_nowait()
+                    update_img(img_name)
+                    display_img = Image.open(img_name)
+                    expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
+                    img = ImageTk.PhotoImage(expandedImg)
+                    image_label = tk.Label(right_frame, image=img, background='lightblue')
+                    object_label = tk.Label(right_frame, text=f"Object Type: {img_name.split('.')[0]}", background='lightblue')
+                    object_label.pack(side=tk.TOP, pady=(70,0))
+                    image_label.pack(side=tk.TOP, fill=tk.BOTH)#, expand=1
+                    #previous images
+                    for i in range(1, len(img_list)):
+                        new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])
+                        new_img_label.pack(side=tk.RIGHT, pady=15, fill=tk.BOTH, expand=1)
         except Exception as e:
             print("Error in refresh_plot:", e)
         window.after(2000, refresh_plot)  # Schedule next update in 2000 ms
@@ -182,22 +198,12 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
     refresh_plot()  # Start the timer
 
     # if button makes sense
-    
     stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red', command=stop_receiving)
     stop_rec_btn.pack(side=tk.LEFT, anchor='s', pady=20)
     # Display the image on the right side of the frame
-    display_img = Image.open(img_list[0])
-    expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
-    img = ImageTk.PhotoImage(expandedImg)
-    image_label = tk.Label(right_frame, image=img, background='lightblue')
-    object_label = tk.Label(right_frame, text="Object Type: Child Drawing", background='lightblue')
-    object_label.pack(side=tk.TOP, pady=(70,0))
-    image_label.pack(side=tk.TOP, fill=tk.BOTH)#, expand=1
     
-    #previous images
-    for i in range(1, len(img_list)):
-        new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])
-        new_img_label.pack(side=tk.RIGHT, pady=15, fill=tk.BOTH, expand=1)
+    
+    
     window.mainloop()
 
 def test_update():
