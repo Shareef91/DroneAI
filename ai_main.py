@@ -377,7 +377,7 @@ if __name__ == "__main__":
                     if detection.conf > args.threshold:
                         print(f"Detected object: {label} (confidence: {detection.conf:.2f})")
                         objQueue.put(label)
-                        save_detection_image(picam2, label)
+                        # save_detection_image(picam2, label)
 
     except KeyboardInterrupt:
         print("\nShutting down...")
