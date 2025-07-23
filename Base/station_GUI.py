@@ -189,7 +189,7 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     #previous images
                     for i in range(1, len(img_list)):
                         new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])
-                        if i == 1:
+                        if i == len(img_list) - 1:
                             new_img_label.pack(side=tk.RIGHT, pady=15, fill=tk.BOTH, expand=1)
         except Exception as e:
             print("Error in refresh_plot:", e)
