@@ -112,7 +112,7 @@ def save_detection_image(picam2, label, detection=None, folder="detections"):
 
     # Check if a .jpg file with this label already exists in the folder
     existing_files = [f for f in os.getcwd() if f.startswith(label) and f.endswith(".jpg")]
-    if len(existing_files) < 5:
+    if len(existing_files) < 5 and len(existing_files) > 0:
         # If exists, append timestamp to filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = str(f"{label}_{timestamp}.jpg")
