@@ -124,7 +124,7 @@ def save_detection_image(picam2, label, detection=None, folder="detections"):
         # 112 quality for farther objects or resize it less
         img.save(filename, format='JPEG', quality=72)
 
-    elif existing_files is None:
+    else:
         # If not, just use label.jpg
         filename = str(f"{label}.jpg")
 
@@ -138,6 +138,7 @@ def save_detection_image(picam2, label, detection=None, folder="detections"):
         imgQueue.put(filename)
 
     print(f"[INFO] Saved detection image: {filename}")
+
     return filename
 
 
