@@ -186,6 +186,7 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     expandedImg.save("expanded_image.jpg")  # Save the resized image
                     img = ImageTk.PhotoImage(expandedImg)
                     image_label.config(image=img)
+                    image_label.image = img
                     object_label.config(text=f"Object Type: {img_name.split('.')[0]}")
                     #previous images
                     for i in range(1, len(img_list)):
