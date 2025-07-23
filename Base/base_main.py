@@ -28,7 +28,7 @@ if __name__ == "__main__":
     base_receiver = LoRaReceiver()
     threading.Thread(target=base_receiver.receiver).start()
     #threading.Thread(target=plot_data, args=(base_receiver.wQueue, done)).start()
-    threading.Thread(target=display_img, args=(base_receiver.imgQueue, done)).start()
+    #threading.Thread(target=display_img, args=(base_receiver.imgQueue, done)).start()
 
     main(base_receiver.wQueue, base_receiver.objQueue, base_receiver.imgQueue)
     # weather packet -  W:(int here)
