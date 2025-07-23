@@ -12,6 +12,8 @@ import base64
 import Adafruit_DHT
 import threading
 from queue import Queue
+from PIL import Image
+
 from adafruit_bme280 import basic as adafruit_bme280
 from picamera2 import MappedArray, Picamera2
 from picamera2.encoders import H264Encoder
@@ -110,16 +112,22 @@ def save_detection_image(picam2, label, detection=None, folder="detections"):
 
     # Check if a .jpg file with this label already exists in the folder
     existing_files = [f for f in os.getcwd() if f.startswith(label) and f.endswith(".jpg")]
-    if existing_files:
+    if len(existing_files) < 5:
         # If exists, append timestamp to filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = str(f"{label}_{timestamp}.jpg")
-    else:
+    elif existing_files is None:
         # If not, just use label.jpg
         filename = str(f"{label}.jpg")
         # Push to imgQueue only for the first detection
         imgQueue.put(filename)
+
     cv2.imwrite(filename, cropped)
+    
+    img = Image.open(filename)
+    img = img.resize((img.width // 4, img.height // 4))
+    # 112 quality for farther objects or resize it less
+    img.save(filename, format='JPEG', quality=72) 
     print(f"[INFO] Saved detection image: {filename}")
     return filename
 
