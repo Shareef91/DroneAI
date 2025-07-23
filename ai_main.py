@@ -109,7 +109,7 @@ def save_detection_image(picam2, label, detection=None, folder="detections"):
         cropped = frame
 
     # Check if a .jpg file with this label already exists in the folder
-    existing_files = [f for f in os.getcwd if f.startswith(label) and f.endswith(".jpg")]
+    existing_files = [f for f in os.getcwd() if f.startswith(label) and f.endswith(".jpg")]
     if existing_files:
         # If exists, append timestamp to filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
