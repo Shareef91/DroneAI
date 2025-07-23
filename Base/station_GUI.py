@@ -181,9 +181,7 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     img_name = imgQueue.get_nowait()
                     update_img(img_name)
                     display_img = Image.open(img_name)
-                    display_img.save("display_image.jpg")  # Save the resized image
                     expandedImg = display_img.resize((500, int(500 * display_img.height / display_img.width)))
-                    expandedImg.save("expanded_image.jpg")  # Save the resized image
                     img = ImageTk.PhotoImage(expandedImg)
                     image_label.config(image=img)
                     image_label.image = img
