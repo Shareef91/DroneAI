@@ -79,7 +79,7 @@ def read_weather():
             wQueue.put(WeatherStruct)
         except Exception as e:
             print(f"Weather read error: {e}")
-        time.sleep(5)
+        time.sleep(10)
 
 def save_cropped_detections(picam2, detections, folder="detections"):
     frame = picam2.capture_array()
