@@ -322,9 +322,7 @@ if __name__ == "__main__":
 
     try:
 
-
-        print(f"Initializing LoRa transmitter on {args.lora_port}...")
-        lora = LoRaTransmitter(port=args.lora_port, baudrate=args.lora_baudrate)
+        lora = LoRaTransmitter()
         weather_thread = threading.Thread(target=read_weather, daemon=True)
         lora_thread = threading.Thread(target=lora.loop, daemon=True)
         weather_thread.start()
