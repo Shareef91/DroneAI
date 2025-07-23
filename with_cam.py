@@ -1,28 +1,33 @@
+# imports (unchanged)
 import argparse
 import sys
 import time
+import board
+from functools import lru_cache
+from datetime import datetime
 import os
 import cv2
 import numpy as np
 import serial
 import base64
-import threading
-from functools import lru_cache
-from datetime import datetime
-from queue import Queue
-
-import board
 import Adafruit_DHT
+import threading
+from queue import Queue
 from adafruit_bme280 import basic as adafruit_bme280
-
 from picamera2 import MappedArray, Picamera2
 from picamera2.devices import IMX500
-from picamera2.devices.imx500 import (NetworkIntrinsics, postprocess_nanodet_detection)
+from picamera2.encoders import H264Encoder
+from picamera2.outputs import FileOutput
+from picamera2.devices.imx500 import (
+    NetworkIntrinsics,
+    postprocess_nanodet_detection
+)
 
-# === GLOBALS ===
+# Constants
 last_detections = []
 last_sent_time = 0
-COOLDOWN_SEC = 5
+DET_WAIT_SEC = 20
+COOLDOWN_SEC = 3
 DHT_SENSOR = Adafruit_DHT.DHT22
 DHT_PIN = 4
 CHUNK_SIZE = 200
@@ -31,6 +36,13 @@ running = True
 
 wQueue = Queue()
 imgQueue = Queue()
+objQueue = Queue()
+
+class Detection:
+    def __init__(self, coords, category, conf, metadata):
+        self.category = category
+        self.conf = conf
+        self.box = intrinsics.convert_inference_coords(coords, metadata, picam2)
 
 class WeatherData:
     def __init__(self, time="0", temp=0, humidity=0, pressure=0, altitude=0):
@@ -42,55 +54,57 @@ class WeatherData:
 
 WeatherStruct = WeatherData()
 
-class Detection:
-    def __init__(self, coords, category, conf, metadata, imx500, picam2):
-        self.category = category
-        self.conf = conf
-        self.box = imx500.convert_inference_coords(coords, metadata, picam2)
-
-# Should be run as a separate thread
 def read_weather():
     i2c = board.I2C()
     bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, 0x76)
-    bme280.sea_level_pressure = 1018.5
+    bme280.sea_level_pressure = 1015
 
     while running:
-        temperature = bme280.temperature
-        humidity = bme280.relative_humidity
-        pressure = bme280.pressure
-        altitude = bme280.altitude
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        try:
+            temperature = bme280.temperature
+            humidity = bme280.relative_humidity
+            pressure = bme280.pressure
+            altitude = bme280.altitude
+            timestamp = datetime.now()
 
-        WeatherStruct.time = timestamp
-        WeatherStruct.temp = temperature
-        WeatherStruct.humidity = humidity
-        WeatherStruct.pressure = pressure
-        WeatherStruct.altitude = altitude
+            WeatherStruct.time = timestamp
+            WeatherStruct.temp = temperature
+            WeatherStruct.humidity = humidity
+            WeatherStruct.pressure = pressure
+            WeatherStruct.altitude = altitude
 
-        # Save to CSV
-        with open("weather_data.csv", "a") as f:
-            f.write(f"{timestamp},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
+            with open("weather_data.csv", "a") as f:
+                f.write(f"{timestamp},{temperature:.1f},{humidity:.1f},{pressure:.1f},{altitude:.2f}\n")
 
-        wQueue.put(WeatherStruct)
-        time.sleep(5)
+            wQueue.put(WeatherStruct)
+        except Exception as e:
+            print(f"Weather read error: {e}")
+        time.sleep(10)
 
-def save_detection_image(picam2, folder):
+def save_cropped_detections(picam2, detections, folder="detections"):
     frame = picam2.capture_array()
     os.makedirs(folder, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = os.path.join(folder, f"detection_{timestamp}.jpg")
-    cv2.imwrite(filename, frame)
-    return filename
+    paths = []
+    for det in detections:
+        x1, y1, x2, y2 = map(int, det.box)
+        cropped = frame[y1:y2, x1:x2]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(folder, f"{det.category}_{timestamp}.jpg")
+        cv2.imwrite(filename, cropped, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+        paths.append((filename, det.category))
+    return paths
 
 class LoRaTransmitter:
     def __init__(self, port="/dev/ttyS0", baudrate=9600):
         self.ser = serial.Serial(port, baudrate, parity=serial.PARITY_NONE,
                                  stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=2)
         self.weatherCounter = 0
+        self.detected_objects = set()
+        self.detected_recently = {}
 
     def send(self, message):
         retry_count = 0
-        while retry_count <= MAX_RETRIES:
+        while retry_count < MAX_RETRIES:
             self.ser.write((message + "\n").encode('utf-8'))
             start_time = time.time()
             ack_received = False
@@ -111,6 +125,8 @@ class LoRaTransmitter:
     def send_weather(self, weatherToSend):
         message = f"W:{self.weatherCounter},{weatherToSend.time},{weatherToSend.temp:.2f},{weatherToSend.humidity:.2f},{weatherToSend.pressure:.2f},{weatherToSend.altitude:.2f}"
         retry_count = 0
+        ack_tag = f"ACK {self.weatherCounter}"
+
         while retry_count <= MAX_RETRIES:
             self.ser.write((message + "\n").encode('utf-8'))
             start_time = time.time()
@@ -118,7 +134,8 @@ class LoRaTransmitter:
             while time.time() - start_time < 2:
                 if self.ser.in_waiting:
                     ack = self.ser.readline().decode('utf-8').strip()
-                    if ack == f"ACK {self.weatherCounter}":
+                    print(f"Received: {ack}")
+                    if ack == ack_tag:
                         ack_received = True
                         break
             if ack_received:
@@ -134,19 +151,41 @@ class LoRaTransmitter:
         while running:
             if not wQueue.empty():
                 self.send_weather(wQueue.get())
+            if not objQueue.empty():
+                objID = objQueue.get()
+                self.obj_Check(objID)
             if not imgQueue.empty():
-                self.send_image(imgQueue.get())
+                imgPath = imgQueue.get()
+                if imgPath in self.detected_objects:
+                    continue
+                self.send_image(imgPath)
+                self.detected_objects.add(imgPath)
+
+    def obj_Check(self, objID):
+        now = time.time()
+        expired = [k for k, v in self.detected_recently.items() if now - v > COOLDOWN_SEC]
+        for k in expired:
+            del self.detected_recently[k]
+        if objID not in self.detected_recently:
+            self.send("OBJ:" + objID)
+            self.detected_recently[objID] = now
 
     def send_image(self, image_path):
         with open(image_path, "rb") as img_file:
             b64_data = base64.b64encode(img_file.read()).decode("utf-8")
 
         total = (len(b64_data) + CHUNK_SIZE - 1) // CHUNK_SIZE
+        image_name = os.path.basename(image_path)
+        object_id = image_name.split('_')[0]
         print(f"Sending image in {total} packets...")
+        print("Sending object ID:", object_id)
+        self.send(f"ID:{object_id}")
 
         for i in range(total):
-            if not wQueue.empty():
+            while not wQueue.empty():
                 self.send_weather(wQueue.get())
+            while not objQueue.empty():
+                self.obj_Check(objQueue.get())
             part = b64_data[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE]
             packet = f"{i+1}/{total}:{part}\n"
             retry_count = 0
@@ -168,13 +207,11 @@ class LoRaTransmitter:
                     print(f"Packet {i+1}/{total} not acknowledged. Retry {retry_count}/{MAX_RETRIES}...")
                     time.sleep(0.2)
             time.sleep(0.1)
-        print("Image transmission completed. Sending object ID")
-        self.send("ID:" + image_path.split('/')[-1])
 
     def close(self):
         self.ser.close()
 
-def parse_detections(metadata, imx500, picam2, intrinsics, args, lora):
+def parse_detections(metadata: dict):
     global last_detections, last_sent_time
     bbox_normalization = intrinsics.bbox_normalization
     bbox_order = intrinsics.bbox_order
@@ -187,9 +224,9 @@ def parse_detections(metadata, imx500, picam2, intrinsics, args, lora):
     if np_outputs is None:
         return last_detections
     if intrinsics.postprocess == "nanodet":
-        boxes, scores, classes = \
-            postprocess_nanodet_detection(outputs=np_outputs[0], conf=threshold, iou_thres=iou,
-                                          max_out_dets=max_detections)[0]
+        boxes, scores, classes = postprocess_nanodet_detection(
+            outputs=np_outputs[0], conf=threshold, iou_thres=iou, max_out_dets=max_detections
+        )[0]
         from picamera2.devices.imx500.postprocess import scale_boxes
         boxes = scale_boxes(boxes, 1, 1, input_h, input_w, False, False)
     else:
@@ -202,75 +239,61 @@ def parse_detections(metadata, imx500, picam2, intrinsics, args, lora):
         boxes = zip(*boxes)
 
     last_detections = [
-        Detection(box, category, score, metadata, imx500, picam2)
+        Detection(box, category, score, metadata)
         for box, score, category in zip(boxes, scores, classes)
         if score > threshold
     ]
 
-    if len(last_detections) > 0 and time.time() - last_sent_time > COOLDOWN_SEC:
-        filename = save_detection_image(picam2, "detections")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        weather_info = f" Temp: {WeatherStruct.temp}C Hum: {WeatherStruct.humidity}%"
-        lora.send(f"{timestamp}: Detected object.{weather_info}")
-        lora.send_image(filename)
+    if last_detections and time.time() - last_sent_time > COOLDOWN_SEC:
+        categories = list(set([det.category for det in last_detections]))
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Detected: {', '.join(categories)}")
+        objQueue.put(",".join(categories))
+        for path, category in save_cropped_detections(picam2, last_detections):
+            imgQueue.put(path)
+            objQueue.put(category)
         last_sent_time = time.time()
 
-    return last_detections
-
 def draw_detections(request):
-    """Draw detection boxes on the camera preview"""
     with MappedArray(request, "main") as m:
         for detection in last_detections:
             x1, y1, x2, y2 = detection.box
             cv2.rectangle(m.array, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0, 0), 2)
             label = f"{detection.category}: {detection.conf:.2f}"
             cv2.putText(m.array, label, (int(x1), int(y1) - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0, 0), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0, 0), 1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Detection with LoRa transmission")
-    parser.add_argument("--model", type=str, help="Path to the AI model",
-                       default="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpn_uint8.rpk")
+    parser.add_argument("--model", type=str, default="/home/team3box/Documents/DroneAI/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk")
     parser.add_argument("--threshold", type=float, default=0.55, help="Detection confidence threshold")
-    parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold for NMS")
-    parser.add_argument("--max-detections", type=int, default=10, help="Maximum number of detections")
-    parser.add_argument("--lora-port", type=str, default="/dev/ttyS0", help="LoRa serial port")
-    parser.add_argument("--lora-baudrate", type=int, default=9600, help="LoRa baudrate")
-    parser.add_argument("--preview", action="store_true", help="Show camera preview with detections")
-
+    parser.add_argument("--iou", type=float, default=0.65, help="IoU threshold")
+    parser.add_argument("--max-detections", type=int, default=10)
+    parser.add_argument("--lora-port", type=str, default="/dev/ttyS0")
+    parser.add_argument("--lora-baudrate", type=int, default=9600)
+    parser.add_argument("--preview", action="store_true")
     args = parser.parse_args()
 
     try:
-        print("Initializing camera and AI model...")
-        if not IMX500.is_available():
-            print("ERROR: IMX500 not available. Make sure you're running on a compatible device.")
-            sys.exit(1)
-
-        # === Correct IMX500 and Picamera2 Initialization ===
-        imx500 = IMX500(args.model)
-        intrinsics = imx500.network_intrinsics
-        if not intrinsics:
-            intrinsics = NetworkIntrinsics()
-            intrinsics.task = "object detection"
-        elif intrinsics.task != "object detection":
-            print("Network is not an object detection task", file=sys.stderr)
-            sys.exit(1)
-
-        picam2 = Picamera2(imx500.camera_num)
-        config = picam2.create_preview_configuration(controls={"FrameRate": 30})
+        print("Initializing camera...")
+        picam2 = Picamera2()
+        config = picam2.create_preview_configuration(main={"size": (640, 480)}, controls={"FrameRate": 30})
+        config['ai'] = {"model": args.model}
         picam2.configure(config)
-        imx500.show_network_fw_progress_bar()
-        picam2.start(config, show_preview=args.preview)
 
-        print(f"Initializing LoRa transmitter on {args.lora_port}...")
+        intrinsics = NetworkIntrinsics()
+        imx500 = picam2
+
         lora = LoRaTransmitter(port=args.lora_port, baudrate=args.lora_baudrate)
 
         if args.preview:
-            picam2.pre_callback = draw_detections
+            picam2.post_callback = draw_detections
 
-        print("AI Detection system started. Press Ctrl+C to stop.")
-        print(f"Detection threshold: {args.threshold}")
-        print(f"Cooldown period: {COOLDOWN_SEC} seconds")
+        picam2.start(show_preview=args.preview)
+
+        while not picam2.capture_metadata():
+            time.sleep(0.1)
+
+        print("Camera and AI initialized.")
 
         weather_thread = threading.Thread(target=read_weather, daemon=True)
         lora_thread = threading.Thread(target=lora.loop, daemon=True)
@@ -279,38 +302,29 @@ if __name__ == "__main__":
 
         while True:
             metadata = picam2.capture_metadata()
-            if metadata:
-                detections = parse_detections(metadata, imx500, picam2, intrinsics, args, lora)
-                if detections:
-                    print(f"Detected {len(detections)} objects")
-                    for i, det in enumerate(detections):
-                        print(f"  {i+1}: {det.category} (confidence: {det.conf:.2f})")
-            time.sleep(0.1)
+            if metadata and "ai.outputs" in metadata:
+                outputs = imx500.get_outputs(metadata)
+                if outputs is not None:
+                    parse_detections(metadata)
+                else:
+                    print("No AI outputs found.")
+            else:
+                print("No metadata or ai.outputs")
 
     except KeyboardInterrupt:
-        print("\nShutting down...")
-
+        print("Stopping...")
     except serial.SerialException as e:
-        print(f"LoRa communication error: {e}")
-        print("Check LoRa device connection and port settings.")
+        print(f"Serial error: {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        try:
-            running = False
-            if 'lora' in locals():
-                try:
-                    lora.close()
-                except:
-                    pass
-            if 'picam2' in locals():
-                try:
-                    picam2.stop()
-                except:
-                    pass
-            print("Cleanup completed.")
-        except Exception as cleanup_error:
-            print(f"Error during cleanup: {cleanup_error}")
+        running = False
+        if 'lora' in locals():
+            lora.close()
+        if 'picam2' in locals():
+            picam2.stop()
+        print("Shutdown complete.")
+
 
