@@ -353,6 +353,15 @@ def get_labels():
 if __name__ == "__main__":
     args = get_args()
 
+    # Remove all .jpg files in the working directory
+    for file in os.listdir(os.getcwd()):
+        if file.endswith(".jpg"):
+            try:
+                os.remove(file)
+                print(f"Removed file: {file}")
+            except Exception as e:
+                print(f"Error removing file {file}: {e}")
+
     try:
 
         lora = LoRaTransmitter()
