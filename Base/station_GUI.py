@@ -43,9 +43,11 @@ def display_prev_image(label, img):
     label.image = ready_img  # Keep a reference to avoid garbage collection
     return label
 
-def stop_receiving():
-        global rec_done
-        rec_done = True
+def stop_receiving(figure):
+    global rec_done
+    rec_done = True
+    figure.savefig("live_plot.png")
+
 
 def main(wQueue=None, objQueue=None, imgQueue=None):
     window = tk.Tk()
@@ -188,8 +190,8 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
                     object_label.config(text=f"Object Type: {img_name.split('.')[0]}")
                     #previous images
                     for i in range(1, len(img_list)):
-                        new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[-i])
-                        if i == len(img_list) - 1:
+                        new_img_label = display_prev_image(tk.Label(right_frame, background='lightblue'), img_list[i])
+                        if i == 1:
                             new_img_label.pack(side=tk.RIGHT, pady=15, fill=tk.BOTH, expand=1)
         except Exception as e:
             print("Error in refresh_plot:", e)
@@ -205,12 +207,9 @@ def main(wQueue=None, objQueue=None, imgQueue=None):
         
     refresh_plot()  # Start the timer
 
-    # if button makes sense
-    stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red', command=stop_receiving)
+    stop_rec_btn = tk.Button(frame, text="Stop Receiving Data", background='red', command=lambda: stop_receiving(fig))
     stop_rec_btn.pack(side=tk.LEFT, anchor='s', pady=20)
     # Display the image on the right side of the frame
-    
-    
     
     window.mainloop()
 
